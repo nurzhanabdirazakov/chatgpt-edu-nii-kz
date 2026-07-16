@@ -51,7 +51,11 @@ const copy = {
 function ratio(row: Institute) { return row.licenses > 0 ? row.activated / row.licenses : 0; }
 
 function cleanName(value: string) {
-  return value.replace(/^\s*["“]+|["”]+\s*$/g, "").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/Республиканское\s+государственное\s+предприяти(?:е|я)\s+на\s+праве\s+хозяйственного\s+ведения/gi, "РГП на ПХВ")
+    .replace(/^\s*["“]+|["”]+\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function shortName(value: string) {

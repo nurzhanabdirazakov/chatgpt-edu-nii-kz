@@ -7,6 +7,7 @@ type Lang = "ru" | "kz";
 type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate";
 
 const POWER_BI = { started: 240, activated: 190, updated: "13.07.2026, 11:07" };
+const PERSONAL = { started: "01.07.2026", unsignedAtStart: 56 };
 
 const copy = {
   ru: {
@@ -15,9 +16,10 @@ const copy = {
     intro: "Открытая сводка по договорам, выдаче доступов и активации сотрудников научных организаций.",
     updated: "Данные Power BI обновлены",
     sheet: "Снимок Google Sheets: 16.07.2026",
-    total: "Всего НИИ", licenses: "Заявленные места", started: "Получили логин", activated: "Активировали", rate: "Нац. активация",
+    total: "Всего НИИ", licenses: "Заявленные места", started: "Получили логин", activated: "Активировали", rate: "Активация от мест",
     signed: "Подписали договор", unsigned: "Не подписали", of: "из", institutes: "организаций",
     timeline: "Прогресс проекта", contracts: "Договоры", access: "Доступы", activation: "Активация", complete: "завершено",
+    personalTitle: "Личный прогресс", personalHint: "Динамика проекта с начала вашей работы", personalStart: "Старт работы", startUnsigned: "Не подписали на старте", currentUnsigned: "Не подписали сейчас", reducedUnsigned: "Сокращение", backlogClosed: "стартового списка закрыто",
     leaders: "Лидеры активации", attention: "Требуют внимания", fullList: "Полный список подключённых НИИ",
     leaderHint: "Все организации с начавшими работу сотрудниками", attentionHint: "Договор подписан, но активация ещё не началась",
     profile: "Профиль института", profileHint: "Начните вводить название или выберите организацию",
@@ -33,9 +35,10 @@ const copy = {
     title: "Ғылыми-зерттеу институттарын ChatGPT Edu жүйесіне қосу",
     intro: "Ғылыми ұйымдар қызметкерлерінің шарттары, қолжетімділігі және белсендірілуі туралы ашық есеп.",
     updated: "Power BI деректері жаңартылды", sheet: "Google Sheets деректер кесіндісі: 16.07.2026",
-    total: "Барлық ҒЗИ", licenses: "Сұралған орындар", started: "Логин алды", activated: "Белсендірді", rate: "Ұлттық белсендіру",
+    total: "Барлық ҒЗИ", licenses: "Сұралған орындар", started: "Логин алды", activated: "Белсендірді", rate: "Орындар бойынша белсендіру",
     signed: "Шартқа қол қойды", unsigned: "Қол қоймады", of: "ішінен", institutes: "ұйым",
     timeline: "Жоба барысы", contracts: "Шарттар", access: "Қолжетімділік", activation: "Белсендіру", complete: "аяқталды",
+    personalTitle: "Жеке прогресс", personalHint: "Жұмыс басталғаннан бергі жоба динамикасы", personalStart: "Жұмыс басталды", startUnsigned: "Басында қол қоймаған", currentUnsigned: "Қазір қол қоймаған", reducedUnsigned: "Қысқарды", backlogClosed: "бастапқы тізім жабылды",
     leaders: "Белсендіру көшбасшылары", attention: "Назар аудару қажет", fullList: "Қосылған ҒЗИ толық тізімі",
     leaderHint: "Жұмысты бастаған қызметкерлері бар барлық ұйым", attentionHint: "Шарт бар, бірақ белсендіру әлі басталмады",
     profile: "Институт профилі", profileHint: "Ұйым атауын теруді бастаңыз немесе тізімнен таңдаңыз",
@@ -99,6 +102,8 @@ export default function Home() {
   const unsigned = institutes.filter(i => !i.signed).sort((a, b) => b.licenses - a.licenses);
   const totalLicenses = institutes.reduce((sum, i) => sum + i.licenses, 0);
   const nationalRate = totalLicenses > 0 ? POWER_BI.activated / totalLicenses : 0;
+  const reducedUnsigned = Math.max(0, PERSONAL.unsignedAtStart - unsigned.length);
+  const backlogClosed = PERSONAL.unsignedAtStart > 0 ? reducedUnsigned / PERSONAL.unsignedAtStart : 0;
   const regions = [...new Set(institutes.map(i => i.region))].sort((a, b) => a.localeCompare(b));
   const selected = institutes.find(i => i.id === selectedId) ?? institutes[0];
   const nameOf = (row: Institute) => cleanName(lang === "ru" ? row.nameRu : row.nameKz);
@@ -179,8 +184,20 @@ export default function Home() {
         </article>
       </section>
 
+      <section className="card personal-card">
+        <div className="section-heading"><div><span className="kicker">03 — PERSONAL IMPACT</span><h2>{t.personalTitle}</h2><p>{t.personalHint}</p></div><b>−{reducedUnsigned}</b></div>
+        <div className="personal-stats">
+          <div><span>{t.personalStart}</span><strong>{PERSONAL.started}</strong></div>
+          <div><span>{t.startUnsigned}</span><strong>{PERSONAL.unsignedAtStart}</strong></div>
+          <div><span>{t.currentUnsigned}</span><strong>{unsigned.length}</strong></div>
+          <div className="personal-result"><span>{t.reducedUnsigned}</span><strong>−{reducedUnsigned}</strong></div>
+        </div>
+        <div className="personal-progress"><i style={{ width: `${backlogClosed * 100}%` }} /></div>
+        <p className="muted"><b>{Math.round(backlogClosed * 100)}%</b> {t.backlogClosed}</p>
+      </section>
+
       <section className="card profile-card">
-        <div className="section-heading"><div><span className="kicker">03 — SPOTLIGHT</span><h2>{t.profile}</h2></div></div>
+        <div className="section-heading"><div><span className="kicker">04 — SPOTLIGHT</span><h2>{t.profile}</h2></div></div>
         <label className="profile-search"><span>⌕</span><input list="institutes" defaultValue={nameOf(selected)} onChange={e => { const found = institutes.find(i => nameOf(i) === e.target.value); if (found) setSelectedId(found.id); }} placeholder={t.profileHint} /></label>
         <datalist id="institutes">{institutes.slice().sort((a,b) => nameOf(a).localeCompare(nameOf(b))).map(i => <option key={i.id} value={nameOf(i)} />)}</datalist>
         <div className="profile-content">
@@ -196,18 +213,18 @@ export default function Home() {
       </section>
 
       <section className="comparison">
-        <article className="card ranking"><div className="section-heading"><div><span className="kicker">04 — PERFORMANCE</span><h2>{t.leaders}</h2><p>{t.leaderHint}</p></div><b>{leaders.length}</b></div><div className="rank-list">{leaders.map(row => <BarRow key={row.id} row={row} lang={lang} tone="good" />)}</div></article>
-        <article className="card ranking"><div className="section-heading"><div><span className="kicker">05 — FOLLOW-UP</span><h2>{t.attention}</h2><p>{t.attentionHint}</p></div><b>{attention.length}</b></div><div className="rank-list">{attention.map(row => <BarRow key={row.id} row={row} lang={lang} tone="bad" />)}</div></article>
+        <article className="card ranking"><div className="section-heading"><div><span className="kicker">05 — PERFORMANCE</span><h2>{t.leaders}</h2><p>{t.leaderHint}</p></div><b>{leaders.length}</b></div><div className="rank-list">{leaders.map(row => <BarRow key={row.id} row={row} lang={lang} tone="good" />)}</div></article>
+        <article className="card ranking"><div className="section-heading"><div><span className="kicker">06 — FOLLOW-UP</span><h2>{t.attention}</h2><p>{t.attentionHint}</p></div><b>{attention.length}</b></div><div className="rank-list">{attention.map(row => <BarRow key={row.id} row={row} lang={lang} tone="bad" />)}</div></article>
       </section>
 
       <section className="card table-card">
-        <div className="section-heading"><div><span className="kicker">06 — DIRECTORY</span><h2>{t.fullList}</h2><p>{t.tableNote}</p></div><b>{filtered.length}</b></div>
+        <div className="section-heading"><div><span className="kicker">07 — DIRECTORY</span><h2>{t.fullList}</h2><p>{t.tableNote}</p></div><b>{filtered.length}</b></div>
         <div className="filters"><label><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t.search} /></label><select value={region} onChange={e => setRegion(e.target.value)}><option value="all">{t.allRegions}</option>{regions.map(r => <option key={r}>{r}</option>)}</select><select value={status} onChange={e => setStatus(e.target.value)}><option value="all">{t.allStatuses}</option><option value="excellent">{t.excellent}</option><option value="track">{t.onTrack}</option><option value="early">{t.early}</option><option value="attention">{t.needsAttention}</option></select></div>
         <div className="table-wrap"><table><thead><tr><th>№</th><th><button onClick={() => changeSort("name")}>{t.name} ↕</button></th><th><button onClick={() => changeSort("region")}>{t.region} ↕</button></th><th><button onClick={() => changeSort("licenses")}>{t.licenses} ↕</button></th><th><button onClick={() => changeSort("started")}>{t.started} ↕</button></th><th><button onClick={() => changeSort("activated")}>{t.activated} ↕</button></th><th><button onClick={() => changeSort("rate")}>{t.rate} ↕</button></th><th>{t.status}</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id} onClick={() => { setSelectedId(row.id); document.querySelector(".profile-card")?.scrollIntoView({behavior:"smooth"}); }}><td>{row.id}</td><td><strong>{nameOf(row)}</strong><small>{row.district}</small></td><td>{row.region}</td><td>{formatNumber(row.licenses, lang)}</td><td>{row.started}</td><td>{row.activated}</td><td><b>{row.licenses ? `${Math.round(ratio(row)*100)}%` : "—"}</b></td><td><span className={`pill ${statusFor(row,lang).key}`}>{statusFor(row,lang).label}</span></td></tr>)}</tbody></table></div>
       </section>
 
       <section className="card unsigned-card">
-        <div className="section-heading"><div><span className="kicker">07 — ONBOARDING QUEUE</span><h2>{t.unsignedTitle}</h2><p>{t.unsignedHint}</p></div><b>{unsigned.length}</b></div>
+        <div className="section-heading"><div><span className="kicker">08 — ONBOARDING QUEUE</span><h2>{t.unsignedTitle}</h2><p>{t.unsignedHint}</p></div><b>{unsigned.length}</b></div>
         <div className="unsigned-grid">{unsigned.map(row => <button key={row.id} onClick={() => { setSelectedId(row.id); document.querySelector(".profile-card")?.scrollIntoView({behavior:"smooth"}); }}><span>{String(row.id).padStart(2,"0")}</span><div><strong>{shortName(nameOf(row))}</strong><small>{row.region} · {row.district}</small></div><b>{formatNumber(row.licenses,lang)}</b></button>)}</div>
       </section>
 

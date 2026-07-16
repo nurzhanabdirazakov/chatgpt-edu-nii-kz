@@ -48,7 +48,7 @@ const copy = {
   },
 };
 
-function ratio(row: Institute) { return row.started > 0 ? row.activated / row.started : 0; }
+function ratio(row: Institute) { return row.licenses > 0 ? row.activated / row.licenses : 0; }
 
 function cleanName(value: string) {
   return value.replace(/^\s*["“]+|["”]+\s*$/g, "").replace(/\s+/g, " ").trim();
@@ -77,8 +77,8 @@ function BarRow({ row, lang, tone }: { row: Institute; lang: Lang; tone: "good" 
   const value = ratio(row);
   return <div className="rank-row">
     <div className="rank-copy"><strong>{shortName(lang === "ru" ? row.nameRu : row.nameKz)}</strong><span>{row.region}</span></div>
-    <div className="rank-score">{row.started ? `${Math.round(value * 100)}%` : "0%"}</div>
-    <div className="mini-track"><i className={tone} style={{ width: `${Math.max(value * 100, row.started ? 3 : 0)}%` }} /></div>
+    <div className="rank-score">{row.licenses ? `${Math.round(value * 100)}%` : "0%"}</div>
+    <div className="mini-track"><i className={tone} style={{ width: `${Math.max(value * 100, row.activated ? 3 : 0)}%` }} /></div>
   </div>;
 }
 
@@ -94,7 +94,7 @@ export default function Home() {
   const signed = institutes.filter(i => i.signed);
   const unsigned = institutes.filter(i => !i.signed).sort((a, b) => b.licenses - a.licenses);
   const totalLicenses = institutes.reduce((sum, i) => sum + i.licenses, 0);
-  const nationalRate = POWER_BI.activated / POWER_BI.started;
+  const nationalRate = totalLicenses > 0 ? POWER_BI.activated / totalLicenses : 0;
   const regions = [...new Set(institutes.map(i => i.region))].sort((a, b) => a.localeCompare(b));
   const selected = institutes.find(i => i.id === selectedId) ?? institutes[0];
   const nameOf = (row: Institute) => cleanName(lang === "ru" ? row.nameRu : row.nameKz);
@@ -143,7 +143,7 @@ export default function Home() {
         </div>
         <div className="hero-meter" aria-label={`${Math.round(nationalRate * 100)}%`}>
           <div className="ring" style={{ "--progress": `${nationalRate * 360}deg` } as React.CSSProperties}><div><strong>{Math.round(nationalRate * 100)}%</strong><span>{t.activation}</span></div></div>
-          <small>{POWER_BI.activated} / {POWER_BI.started}</small>
+          <small>{POWER_BI.activated} / {formatNumber(totalLicenses, lang)}</small>
         </div>
       </div>
     </section>
@@ -166,7 +166,7 @@ export default function Home() {
         </article>
 
         <article className="card timeline-card">
-          <div className="section-heading"><div><span className="kicker">02 — ROADMAP</span><h2>{t.timeline}</h2></div><b>79%</b></div>
+          <div className="section-heading"><div><span className="kicker">02 — ROADMAP</span><h2>{t.timeline}</h2></div><b>{Math.round(nationalRate * 100)}%</b></div>
           <div className="timeline">
             <div className="done"><span>1</span><b>{t.contracts}</b><small>50% {t.complete}</small></div>
             <div className="done"><span>2</span><b>{t.access}</b><small>{POWER_BI.started}</small></div>
@@ -185,7 +185,7 @@ export default function Home() {
             <div><span>{t.licenses}</span><strong>{formatNumber(selected.licenses, lang)}</strong></div>
             <div><span>{t.started}</span><strong>{selected.started}</strong></div>
             <div><span>{t.activated}</span><strong>{selected.activated}</strong></div>
-            <div><span>{t.rate}</span><strong>{selected.started ? `${Math.round(ratio(selected) * 100)}%` : "—"}</strong></div>
+            <div><span>{t.rate}</span><strong>{selected.licenses ? `${Math.round(ratio(selected) * 100)}%` : "—"}</strong></div>
           </div>
           <div className="profile-status"><span className={`pill ${statusFor(selected,lang).key}`}>{statusFor(selected,lang).label}</span><small>{t.contract}: <b>{selected.signed ? t.yes : t.no}</b></small></div>
         </div>
@@ -199,7 +199,7 @@ export default function Home() {
       <section className="card table-card">
         <div className="section-heading"><div><span className="kicker">06 — DIRECTORY</span><h2>{t.fullList}</h2><p>{t.tableNote}</p></div><b>{filtered.length}</b></div>
         <div className="filters"><label><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t.search} /></label><select value={region} onChange={e => setRegion(e.target.value)}><option value="all">{t.allRegions}</option>{regions.map(r => <option key={r}>{r}</option>)}</select><select value={status} onChange={e => setStatus(e.target.value)}><option value="all">{t.allStatuses}</option><option value="excellent">{t.excellent}</option><option value="track">{t.onTrack}</option><option value="early">{t.early}</option><option value="attention">{t.needsAttention}</option></select></div>
-        <div className="table-wrap"><table><thead><tr><th>№</th><th><button onClick={() => changeSort("name")}>{t.name} ↕</button></th><th><button onClick={() => changeSort("region")}>{t.region} ↕</button></th><th><button onClick={() => changeSort("licenses")}>{t.licenses} ↕</button></th><th><button onClick={() => changeSort("started")}>{t.started} ↕</button></th><th><button onClick={() => changeSort("activated")}>{t.activated} ↕</button></th><th><button onClick={() => changeSort("rate")}>{t.rate} ↕</button></th><th>{t.status}</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id} onClick={() => { setSelectedId(row.id); document.querySelector(".profile-card")?.scrollIntoView({behavior:"smooth"}); }}><td>{row.id}</td><td><strong>{nameOf(row)}</strong><small>{row.district}</small></td><td>{row.region}</td><td>{formatNumber(row.licenses, lang)}</td><td>{row.started}</td><td>{row.activated}</td><td><b>{row.started ? `${Math.round(ratio(row)*100)}%` : "—"}</b></td><td><span className={`pill ${statusFor(row,lang).key}`}>{statusFor(row,lang).label}</span></td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table><thead><tr><th>№</th><th><button onClick={() => changeSort("name")}>{t.name} ↕</button></th><th><button onClick={() => changeSort("region")}>{t.region} ↕</button></th><th><button onClick={() => changeSort("licenses")}>{t.licenses} ↕</button></th><th><button onClick={() => changeSort("started")}>{t.started} ↕</button></th><th><button onClick={() => changeSort("activated")}>{t.activated} ↕</button></th><th><button onClick={() => changeSort("rate")}>{t.rate} ↕</button></th><th>{t.status}</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id} onClick={() => { setSelectedId(row.id); document.querySelector(".profile-card")?.scrollIntoView({behavior:"smooth"}); }}><td>{row.id}</td><td><strong>{nameOf(row)}</strong><small>{row.district}</small></td><td>{row.region}</td><td>{formatNumber(row.licenses, lang)}</td><td>{row.started}</td><td>{row.activated}</td><td><b>{row.licenses ? `${Math.round(ratio(row)*100)}%` : "—"}</b></td><td><span className={`pill ${statusFor(row,lang).key}`}>{statusFor(row,lang).label}</span></td></tr>)}</tbody></table></div>
       </section>
 
       <section className="card unsigned-card">

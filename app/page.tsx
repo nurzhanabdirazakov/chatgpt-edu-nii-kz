@@ -7,6 +7,7 @@ type Lang = "ru" | "kz";
 type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate";
 
 const PERSONAL = { started: "01.07.2026", unsignedAtStart: 56 };
+const POWER_BI = { started: 240, activated: 190, updated: "13.07.2026, 11:07:47" };
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6e5pkEU1PhZ-jMbzv1_Gf0c7uzH8nLoh62sK0v3JIGQ8cKRXsZ6pvsVqzfngiVAAE1bem14PB4bGh/pub?gid=1899257310&single=true&output=csv";
 const REFRESH_MS = 12 * 60 * 60 * 1000;
 
@@ -169,9 +170,8 @@ export default function Home() {
   const signed = rows.filter(i => i.signed);
   const unsigned = rows.filter(i => !i.signed).sort((a, b) => b.licenses - a.licenses);
   const totalLicenses = rows.reduce((sum, i) => sum + i.licenses, 0);
-  const totalStarted = rows.reduce((sum, i) => sum + i.started, 0);
-  const totalActivated = rows.reduce((sum, i) => sum + i.activated, 0);
-  const nationalRate = totalLicenses > 0 ? totalActivated / totalLicenses : 0;
+  const nationalRate = totalLicenses > 0 ? POWER_BI.activated / totalLicenses : 0;
+  const contractRate = rows.length > 0 ? signed.length / rows.length : 0;
   const reducedUnsigned = Math.max(0, PERSONAL.unsignedAtStart - unsigned.length);
   const backlogClosed = PERSONAL.unsignedAtStart > 0 ? reducedUnsigned / PERSONAL.unsignedAtStart : 0;
   const signedAtStart = Math.max(0, rows.length - PERSONAL.unsignedAtStart);
@@ -223,11 +223,17 @@ export default function Home() {
           <div className="eyebrow"><span />{t.eyebrow}</div>
           <h1>{t.title}</h1>
           <p>{t.intro}</p>
-          <div className="data-stamp"><b>{lang === "ru" ? "Google Sheets обновлён" : "Google Sheets жаңартылды"}: {lastRefresh ? new Intl.DateTimeFormat(lang === "ru" ? "ru-RU" : "kk-KZ", { dateStyle: "short", timeStyle: "short" }).format(lastRefresh) : "—"}</b><span>{refreshState === "error" ? (lang === "ru" ? "Не удалось обновить — показаны последние сохранённые данные" : "Жаңарту мүмкін болмады — соңғы сақталған деректер көрсетілді") : (lang === "ru" ? "Автообновление каждые 12 часов" : "Әр 12 сағат сайын автоматты жаңарту")}</span></div>
+          <div className="data-stamp"><b>{lang === "ru" ? "Power BI визуально проверен" : "Power BI визуалды тексерілді"}: {POWER_BI.updated}</b><span>{refreshState === "error" ? (lang === "ru" ? "Не удалось обновить Google Sheets — показаны последние сохранённые строки" : "Google Sheets жаңарту мүмкін болмады — соңғы сақталған жолдар көрсетілді") : `${lang === "ru" ? "Google Sheets" : "Google Sheets"}: ${lastRefresh ? new Intl.DateTimeFormat(lang === "ru" ? "ru-RU" : "kk-KZ", { dateStyle: "short", timeStyle: "short" }).format(lastRefresh) : "—"} • ${lang === "ru" ? "автообновление каждые 12 часов" : "әр 12 сағат сайын автоматты жаңарту"}`}</span></div>
         </div>
-        <div className="hero-meter" aria-label={`${Math.round(nationalRate * 100)}%`}>
-          <div className="ring" style={{ "--progress": `${nationalRate * 360}deg` } as React.CSSProperties}><div><strong>{Math.round(nationalRate * 100)}%</strong><span>{t.activation}</span></div></div>
-          <small>{formatNumber(totalActivated, lang)} / {formatNumber(totalLicenses, lang)}</small>
+        <div className="hero-meters">
+          <div className="hero-meter" aria-label={`${t.activation}: ${Math.round(nationalRate * 100)}%`}>
+            <div className="ring activation-ring" style={{ "--progress": `${nationalRate * 360}deg` } as React.CSSProperties}><div><strong>{Math.round(nationalRate * 100)}%</strong><span>{t.activation}</span></div></div>
+            <small>{formatNumber(POWER_BI.activated, lang)} / {formatNumber(totalLicenses, lang)}</small>
+          </div>
+          <div className="hero-meter" aria-label={`${t.contracts}: ${Math.round(contractRate * 100)}%`}>
+            <div className="ring contract-ring" style={{ "--progress": `${contractRate * 360}deg` } as React.CSSProperties}><div><strong>{Math.round(contractRate * 100)}%</strong><span>{t.contracts}</span></div></div>
+            <small>{signed.length} / {rows.length}</small>
+          </div>
         </div>
       </div>
     </section>
@@ -236,24 +242,24 @@ export default function Home() {
       <section className="kpi-grid" aria-label="Key metrics">
         {[
           ["01", t.total, rows.length, "navy"], ["02", t.licenses, totalLicenses, "blue"],
-          ["03", t.started, totalStarted, "sky"], ["04", t.activated, totalActivated, "green"],
+          ["03", t.started, POWER_BI.started, "sky"], ["04", t.activated, POWER_BI.activated, "green"],
           ["05", t.rate, `${Math.round(nationalRate * 100)}%`, "amber"],
         ].map(([no, label, value, tone]) => <article className={`kpi ${tone}`} key={String(no)}><span>{no}</span><p>{label}</p><strong>{typeof value === "number" ? formatNumber(value, lang) : value}</strong></article>)}
       </section>
 
       <section className="contract-grid">
         <article className="card contract-card">
-          <div className="section-heading"><div><span className="kicker">01 — ONBOARDING</span><h2>{t.contracts}</h2></div><b>{rows.length ? Math.round(signed.length / rows.length * 100) : 0}%</b></div>
+          <div className="section-heading"><div><span className="kicker">01 — ONBOARDING</span><h2>{t.contracts}</h2></div><b>{Math.round(contractRate * 100)}%</b></div>
           <div className="contract-split"><div className="signed"><strong>{signed.length}</strong><span>{t.signed}</span></div><div className="unsigned"><strong>{unsigned.length}</strong><span>{t.unsigned}</span></div></div>
-          <div className="progress"><i style={{ width: `${rows.length ? signed.length / rows.length * 100 : 0}%` }} /></div>
+          <div className="progress"><i style={{ width: `${contractRate * 100}%` }} /></div>
           <p className="muted">{signed.length} {t.of} {rows.length} {t.institutes}</p>
         </article>
 
         <article className="card timeline-card">
           <div className="section-heading"><div><span className="kicker">02 — ROADMAP</span><h2>{t.timeline}</h2></div><b>{Math.round(nationalRate * 100)}%</b></div>
           <div className="timeline">
-            <div className="done"><span>1</span><b>{t.contracts}</b><small>50% {t.complete}</small></div>
-            <div className="done"><span>2</span><b>{t.access}</b><small>{totalStarted}</small></div>
+              <div className="done"><span>1</span><b>{t.contracts}</b><small>{Math.round(contractRate * 100)}% {t.complete}</small></div>
+            <div className="done"><span>2</span><b>{t.access}</b><small>{POWER_BI.started}</small></div>
             <div><span>3</span><b>{t.activation}</b><small>{Math.round(nationalRate * 100)}% {t.complete}</small></div>
           </div>
         </article>
@@ -298,7 +304,7 @@ export default function Home() {
       <section className="card table-card">
         <div className="section-heading"><div><span className="kicker">07 — DIRECTORY</span><h2>{t.fullList}</h2><p>{t.tableNote}</p></div><b>{filtered.length}</b></div>
         <div className="filters"><label><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t.search} /></label><select value={region} onChange={e => setRegion(e.target.value)}><option value="all">{t.allRegions}</option>{regions.map(r => <option key={r}>{r}</option>)}</select><select value={status} onChange={e => setStatus(e.target.value)}><option value="all">{t.allStatuses}</option><option value="excellent">{t.excellent}</option><option value="track">{t.onTrack}</option><option value="early">{t.early}</option><option value="attention">{t.needsAttention}</option></select></div>
-        <div className="table-wrap"><table><thead><tr><th>№</th><th><button onClick={() => changeSort("name")}>{t.name} ↕</button></th><th><button onClick={() => changeSort("region")}>{t.region} ↕</button></th><th><button onClick={() => changeSort("licenses")}>{t.licenses} ↕</button></th><th><button onClick={() => changeSort("started")}>{t.started} ↕</button></th><th><button onClick={() => changeSort("activated")}>{t.activated} ↕</button></th><th><button onClick={() => changeSort("rate")}>{t.rate} ↕</button></th><th>{t.status}</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id} onClick={() => { setSelectedId(row.id); document.querySelector(".profile-card")?.scrollIntoView({behavior:"smooth"}); }}><td>{row.id}</td><td><strong>{nameOf(row)}</strong><small>{row.district}</small></td><td>{row.region}</td><td>{formatNumber(row.licenses, lang)}</td><td>{row.started}</td><td>{row.activated}</td><td><b>{row.licenses ? `${Math.round(ratio(row)*100)}%` : "—"}</b></td><td><span className={`pill ${statusFor(row,lang).key}`}>{statusFor(row,lang).label}</span></td></tr>)}</tbody></table></div>
+        <div className="table-wrap"><table><thead><tr><th>№</th><th><button onClick={() => changeSort("name")}>{t.name} ↕</button></th><th><button onClick={() => changeSort("region")}>{t.region} ↕</button></th><th><button onClick={() => changeSort("licenses")}>{t.licenses} ↕</button></th><th><button onClick={() => changeSort("started")}>{t.started} ↕</button></th><th><button onClick={() => changeSort("activated")}>{t.activated} ↕</button></th><th><button onClick={() => changeSort("rate")}>{t.rate} ↕</button></th><th>{t.status}</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id} onClick={() => { setSelectedId(row.id); document.querySelector(".profile-card")?.scrollIntoView({behavior:"smooth"}); }}><td>{row.id}</td><td><strong>{nameOf(row)}</strong><small>{row.district}</small></td><td>{row.region}</td><td>{formatNumber(row.licenses, lang)}</td><td>{row.started}</td><td>{row.activated}</td><td><div className="rate-cell"><b>{row.licenses ? `${Math.round(ratio(row)*100)}%` : "—"}</b><span><i style={{ width: `${Math.min(100, ratio(row) * 100)}%` }} /></span></div></td><td><span className={`pill ${statusFor(row,lang).key}`}>{statusFor(row,lang).label}</span></td></tr>)}</tbody></table></div>
       </section>
 
       <section className="card unsigned-card">
@@ -306,7 +312,7 @@ export default function Home() {
         <div className="unsigned-grid">{unsigned.map(row => <button key={row.id} onClick={() => { setSelectedId(row.id); document.querySelector(".profile-card")?.scrollIntoView({behavior:"smooth"}); }}><span>{String(row.id).padStart(2,"0")}</span><div><strong>{shortName(nameOf(row))}</strong><small>{row.region} · {row.district}</small></div><b>{formatNumber(row.licenses,lang)}</b></button>)}</div>
       </section>
 
-      <aside className="disclaimer"><div>!</div><p><strong>{t.disclaimerTitle}</strong>{lang === "ru" ? "Данные загружаются из опубликованной таблицы Google Sheets и могут обновляться с задержкой. Страница проверяет новые данные при открытии, по кнопке и автоматически каждые 12 часов." : "Деректер жарияланған Google Sheets кестесінен жүктеледі және кідіріспен жаңаруы мүмкін. Бет ашылғанда, батырма арқылы және әр 12 сағат сайын жаңа деректер тексеріледі."}<b>{lang === "ru" ? "Последняя проверка" : "Соңғы тексеру"}: {lastRefresh ? new Intl.DateTimeFormat(lang === "ru" ? "ru-RU" : "kk-KZ", { dateStyle: "short", timeStyle: "short" }).format(lastRefresh) : "—"}</b></p></aside>
+      <aside className="disclaimer"><div>!</div><p><strong>{t.disclaimerTitle}</strong>{lang === "ru" ? "Национальные KPI визуально считываются с публичного отчёта Power BI. Строки организаций загружаются из Google Sheets, поэтому их сумма может отличаться от итога Power BI из-за особенностей агрегации. Google Sheets проверяется при открытии, по кнопке и каждые 12 часов." : "Ұлттық KPI жалпыға қолжетімді Power BI есебінен визуалды түрде оқылады. Ұйым жолдары Google Sheets-тен жүктеледі, сондықтан агрегация ерекшеліктеріне байланысты олардың қосындысы Power BI қорытындысынан өзгеше болуы мүмкін. Google Sheets бет ашылғанда, батырма арқылы және әр 12 сағат сайын тексеріледі."}<b>{lang === "ru" ? "Power BI проверен" : "Power BI тексерілді"}: {POWER_BI.updated}</b></p></aside>
     </div>
 
     <footer><div className="shell"><b>{t.footer}</b><span>Power BI + Google Sheets</span></div></footer>

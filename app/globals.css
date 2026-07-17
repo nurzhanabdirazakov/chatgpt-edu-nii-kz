@@ -13,3 +13,16 @@
 @media(max-width:1000px){.hero-grid{grid-template-columns:1fr 220px}.ring{width:175px;height:175px}.kpi-grid{grid-template-columns:repeat(3,1fr);margin-top:-55px}.contract-grid,.comparison{grid-template-columns:1fr}.personal-stats{grid-template-columns:1fr 1fr}.profile-content{grid-template-columns:1fr 1fr}.profile-status{grid-column:1/-1;align-items:flex-start}.filters{grid-template-columns:1fr 1fr}.filters label{grid-column:1/-1}.unsigned-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.shell{width:min(100% - 28px,1440px)}.topbar{height:60px}.hero-grid{grid-template-columns:1fr;padding-block:48px 92px;min-height:auto}.hero-meter{display:none}.data-stamp{flex-direction:column;align-items:flex-start;gap:5px}.kpi-grid{grid-template-columns:1fr 1fr;margin-top:-54px}.kpi{padding:17px}.kpi strong{font-size:25px}.kpi:last-child{grid-column:1/-1}.dashboard{padding-bottom:50px}.contract-card,.timeline-card,.personal-card,.ranking,.profile-card,.table-card,.unsigned-card{padding:19px}.personal-stats{grid-template-columns:1fr}.profile-content{grid-template-columns:1fr}.profile-stats{grid-template-columns:repeat(2,1fr)}.filters{grid-template-columns:1fr}.filters label{grid-column:auto}.table-wrap{margin:18px -19px -19px}.section-heading h2{font-size:19px}.comparison{gap:14px}.rank-list{max-height:480px}footer .shell{flex-direction:column}.unsigned-grid button{grid-template-columns:32px minmax(0,1fr) auto}}
 @media(max-width:700px){.refresh-button{width:38px;height:36px;padding:0;justify-content:center;font-size:0}.refresh-button span{font-size:19px}}
+
+/* Dual headline metrics and compact progress bars */
+.hero-grid{grid-template-columns:minmax(0,1fr) 430px;gap:54px}
+.hero-meters{position:relative;z-index:1;display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:center}
+.hero-meters .ring{width:190px;height:190px;padding:15px}
+.hero-meters .ring strong{font-size:42px}
+.hero-meters .contract-ring{background:conic-gradient(#47c987 var(--progress),rgba(255,255,255,.12) 0)}
+.rate-cell{display:grid;grid-template-columns:42px 92px;align-items:center;justify-content:center;gap:8px}
+.rate-cell b{color:var(--good);font-variant-numeric:tabular-nums}
+.rate-cell span{height:7px;background:#e7edf2;border-radius:99px;overflow:hidden}
+.rate-cell i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#0bbf5d,#72b529)}
+@media(max-width:1000px){.hero-grid{grid-template-columns:1fr 330px;gap:32px}.hero-meters .ring{width:150px;height:150px}.hero-meters .ring strong{font-size:34px}}
+@media(max-width:700px){.hero-meters{display:none}}

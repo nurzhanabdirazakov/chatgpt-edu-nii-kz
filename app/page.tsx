@@ -264,7 +264,10 @@ export default function Home() {
       </section>
 
       <section className="card personal-card">
-        <div className="section-heading"><div><span className="kicker">03 — PERSONAL IMPACT</span><h2>{t.personalTitle}</h2><p>{t.personalHint}</p></div></div>
+        <div className="section-heading">
+          <div><span className="kicker">03 — PERSONAL IMPACT</span><h2>{t.personalTitle}</h2><p>{t.personalHint}</p></div>
+          <div className="personal-date"><span>{t.personalStart}</span><strong>{PERSONAL.started}</strong></div>
+        </div>
         <div className="personal-stats">
           <div><span>{lang === "ru" ? "Подписали на старте" : "Басында қол қойған"}</span><strong>{signedAtStart}</strong></div>
           <div><span>{lang === "ru" ? "Подписали сейчас" : "Қазір қол қойған"}</span><strong>{signed.length}</strong></div>

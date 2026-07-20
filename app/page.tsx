@@ -172,8 +172,6 @@ export default function Home() {
   const totalLicenses = rows.reduce((sum, i) => sum + i.licenses, 0);
   const nationalRate = totalLicenses > 0 ? POWER_BI.activated / totalLicenses : 0;
   const contractRate = rows.length > 0 ? signed.length / rows.length : 0;
-  const reducedUnsigned = Math.max(0, PERSONAL.unsignedAtStart - unsigned.length);
-  const backlogClosed = PERSONAL.unsignedAtStart > 0 ? reducedUnsigned / PERSONAL.unsignedAtStart : 0;
   const signedAtStart = Math.max(0, rows.length - PERSONAL.unsignedAtStart);
   const signedGrowth = Math.max(0, signed.length - signedAtStart);
   const regions = [...new Set(rows.map(i => i.region))].sort((a, b) => a.localeCompare(b));
@@ -266,18 +264,12 @@ export default function Home() {
       </section>
 
       <section className="card personal-card">
-        <div className="section-heading"><div><span className="kicker">03 — PERSONAL IMPACT</span><h2>{t.personalTitle}</h2><p>{t.personalHint}</p></div><b>−{reducedUnsigned}</b></div>
+        <div className="section-heading"><div><span className="kicker">03 — PERSONAL IMPACT</span><h2>{t.personalTitle}</h2><p>{t.personalHint}</p></div></div>
         <div className="personal-stats">
-          <div><span>{t.personalStart}</span><strong>{PERSONAL.started}</strong></div>
-          <div><span>{t.startUnsigned}</span><strong>{PERSONAL.unsignedAtStart}</strong></div>
-          <div><span>{t.currentUnsigned}</span><strong>{unsigned.length}</strong></div>
-          <div className="personal-result"><span>{t.reducedUnsigned}</span><strong>−{reducedUnsigned}</strong></div>
           <div><span>{lang === "ru" ? "Подписали на старте" : "Басында қол қойған"}</span><strong>{signedAtStart}</strong></div>
           <div><span>{lang === "ru" ? "Подписали сейчас" : "Қазір қол қойған"}</span><strong>{signed.length}</strong></div>
           <div className="personal-result"><span>{lang === "ru" ? "Прирост подписавших" : "Қол қойғандар өсімі"}</span><strong>+{signedGrowth}</strong></div>
         </div>
-        <div className="personal-progress"><i style={{ width: `${backlogClosed * 100}%` }} /></div>
-        <p className="muted"><b>{Math.round(backlogClosed * 100)}%</b> {t.backlogClosed}</p>
       </section>
 
       <section className="card profile-card">

@@ -27,4 +27,7 @@
 @media(max-width:1000px){.hero-grid{grid-template-columns:1fr 330px;gap:32px}.hero-meters .ring{width:150px;height:150px}.hero-meters .ring strong{font-size:34px}}
 @media(max-width:700px){.hero-meters{display:none}}
 .personal-stats{grid-template-columns:repeat(3,1fr)}
-@media(max-width:700px){.personal-stats{grid-template-columns:1fr}}
+.personal-date{min-width:160px;padding:10px 14px;background:#fff;border:1px solid #cfe0ee;border-radius:10px;text-align:right;box-shadow:0 3px 10px rgba(22,50,79,.05)}
+.personal-date span{display:block;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:800}
+.personal-date strong{display:block;margin-top:4px;color:var(--navy);font-size:18px}
+@media(max-width:700px){.personal-stats{grid-template-columns:1fr}.personal-card .section-heading{flex-direction:column}.personal-date{min-width:0;text-align:left}}

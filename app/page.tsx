@@ -7,7 +7,7 @@ type Lang = "ru" | "kz";
 type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate";
 
 const PERSONAL = { started: "01.07.2026", unsignedAtStart: 56 };
-const POWER_BI = { started: 240, activated: 190, updated: "13.07.2026, 11:07:47" };
+const POWER_BI = { started: 286, activated: 223, updated: "20.07.2026, 10:24:07" };
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6e5pkEU1PhZ-jMbzv1_Gf0c7uzH8nLoh62sK0v3JIGQ8cKRXsZ6pvsVqzfngiVAAE1bem14PB4bGh/pub?gid=1899257310&single=true&output=csv";
 const REFRESH_MS = 12 * 60 * 60 * 1000;
 

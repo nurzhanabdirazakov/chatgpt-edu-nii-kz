@@ -6,7 +6,7 @@ import { institutes, type Institute } from "./data";
 type Lang = "ru" | "kz";
 type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate";
 
-const PERSONAL = { started: "01.07.2026", unsignedAtStart: 56 };
+const PERSONAL = { started: "01.07.2026", unsignedAtStart: 56, activatedAtStart: 137 };
 const POWER_BI = { started: 286, activated: 223, updated: "20.07.2026, 10:24:07" };
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6e5pkEU1PhZ-jMbzv1_Gf0c7uzH8nLoh62sK0v3JIGQ8cKRXsZ6pvsVqzfngiVAAE1bem14PB4bGh/pub?gid=1899257310&single=true&output=csv";
 const REFRESH_MS = 12 * 60 * 60 * 1000;
@@ -174,6 +174,7 @@ export default function Home() {
   const contractRate = rows.length > 0 ? signed.length / rows.length : 0;
   const signedAtStart = Math.max(0, rows.length - PERSONAL.unsignedAtStart);
   const signedGrowth = Math.max(0, signed.length - signedAtStart);
+  const activationGrowth = Math.max(0, POWER_BI.activated - PERSONAL.activatedAtStart);
   const regions = [...new Set(rows.map(i => i.region))].sort((a, b) => a.localeCompare(b));
   const selected = rows.find(i => i.id === selectedId) ?? rows[0];
   const nameOf = (row: Institute) => cleanName(lang === "ru" ? row.nameRu : row.nameKz);
@@ -272,6 +273,10 @@ export default function Home() {
           <div><span>{lang === "ru" ? "Подписали на старте" : "Басында қол қойған"}</span><strong>{signedAtStart}</strong></div>
           <div><span>{lang === "ru" ? "Подписали сейчас" : "Қазір қол қойған"}</span><strong>{signed.length}</strong></div>
           <div className="personal-result"><span>{lang === "ru" ? "Прирост подписавших" : "Қол қойғандар өсімі"}</span><strong>+{signedGrowth}</strong></div>
+        </div>
+        <div className="activation-stats">
+          <div><span>{lang === "ru" ? "Активировали на старте" : "Басында белсендірілді"}</span><strong>{PERSONAL.activatedAtStart}</strong><small>{PERSONAL.started}</small></div>
+          <div className="activation-now"><span>{lang === "ru" ? "Активировали сейчас" : "Қазір белсендірілді"}</span><strong>{POWER_BI.activated}</strong><small>+{activationGrowth}</small></div>
         </div>
       </section>
 

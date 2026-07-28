@@ -7,7 +7,14 @@ type Lang = "ru" | "kz";
 type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate";
 
 const PERSONAL = { started: "01.07.2026", unsignedAtStart: 56, activatedAtStart: 137 };
-const POWER_BI = { started: 286, activated: 223, updated: "20.07.2026, 10:24:07" };
+const POWER_BI = {
+  signed: 39,
+  unsigned: 33,
+  moduleStarted: 348,
+  moduleCompleted: 302,
+  activated: 228,
+  updated: "24.07.2026, 18:40:12",
+};
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6e5pkEU1PhZ-jMbzv1_Gf0c7uzH8nLoh62sK0v3JIGQ8cKRXsZ6pvsVqzfngiVAAE1bem14PB4bGh/pub?gid=1899257310&single=true&output=csv";
 const REFRESH_MS = 12 * 60 * 60 * 1000;
 
@@ -171,9 +178,10 @@ export default function Home() {
   const unsigned = rows.filter(i => !i.signed).sort((a, b) => b.licenses - a.licenses);
   const totalLicenses = rows.reduce((sum, i) => sum + i.licenses, 0);
   const nationalRate = totalLicenses > 0 ? POWER_BI.activated / totalLicenses : 0;
-  const contractRate = rows.length > 0 ? signed.length / rows.length : 0;
+  const contractTotal = POWER_BI.signed + POWER_BI.unsigned;
+  const contractRate = contractTotal > 0 ? POWER_BI.signed / contractTotal : 0;
   const signedAtStart = Math.max(0, rows.length - PERSONAL.unsignedAtStart);
-  const signedGrowth = Math.max(0, signed.length - signedAtStart);
+  const signedGrowth = Math.max(0, POWER_BI.signed - signedAtStart);
   const activationGrowth = Math.max(0, POWER_BI.activated - PERSONAL.activatedAtStart);
   const regions = [...new Set(rows.map(i => i.region))].sort((a, b) => a.localeCompare(b));
   const selected = rows.find(i => i.id === selectedId) ?? rows[0];
@@ -231,7 +239,7 @@ export default function Home() {
           </div>
           <div className="hero-meter" aria-label={`${t.contracts}: ${Math.round(contractRate * 100)}%`}>
             <div className="ring contract-ring" style={{ "--progress": `${contractRate * 360}deg` } as React.CSSProperties}><div><strong>{Math.round(contractRate * 100)}%</strong><span>{t.contracts}</span></div></div>
-            <small>{signed.length} / {rows.length}</small>
+            <small>{POWER_BI.signed} / {contractTotal}</small>
           </div>
         </div>
       </div>
@@ -241,25 +249,28 @@ export default function Home() {
       <section className="kpi-grid" aria-label="Key metrics">
         {[
           ["01", t.total, rows.length, "navy"], ["02", t.licenses, totalLicenses, "blue"],
-          ["03", t.started, POWER_BI.started, "sky"], ["04", t.activated, POWER_BI.activated, "green"],
-          ["05", t.rate, `${Math.round(nationalRate * 100)}%`, "amber"],
+          ["03", lang === "ru" ? "Начали вводный модуль" : "Кіріспе модульді бастады", POWER_BI.moduleStarted, "sky"],
+          ["04", lang === "ru" ? "Завершили вводный модуль" : "Кіріспе модульді аяқтады", POWER_BI.moduleCompleted, "blue"],
+          ["05", t.activated, POWER_BI.activated, "green"],
+          ["06", t.rate, `${Math.round(nationalRate * 100)}%`, "amber"],
         ].map(([no, label, value, tone]) => <article className={`kpi ${tone}`} key={String(no)}><span>{no}</span><p>{label}</p><strong>{typeof value === "number" ? formatNumber(value, lang) : value}</strong></article>)}
       </section>
 
       <section className="contract-grid">
         <article className="card contract-card">
           <div className="section-heading"><div><span className="kicker">01 — ONBOARDING</span><h2>{t.contracts}</h2></div><b>{Math.round(contractRate * 100)}%</b></div>
-          <div className="contract-split"><div className="signed"><strong>{signed.length}</strong><span>{t.signed}</span></div><div className="unsigned"><strong>{unsigned.length}</strong><span>{t.unsigned}</span></div></div>
+          <div className="contract-split"><div className="signed"><strong>{POWER_BI.signed}</strong><span>{t.signed}</span></div><div className="unsigned"><strong>{POWER_BI.unsigned}</strong><span>{t.unsigned}</span></div></div>
           <div className="progress"><i style={{ width: `${contractRate * 100}%` }} /></div>
-          <p className="muted">{signed.length} {t.of} {rows.length} {t.institutes}</p>
+          <p className="muted">{POWER_BI.signed} {t.of} {contractTotal} {t.institutes}</p>
         </article>
 
         <article className="card timeline-card">
           <div className="section-heading"><div><span className="kicker">02 — ROADMAP</span><h2>{t.timeline}</h2></div><b>{Math.round(nationalRate * 100)}%</b></div>
           <div className="timeline">
-              <div className="done"><span>1</span><b>{t.contracts}</b><small>{Math.round(contractRate * 100)}% {t.complete}</small></div>
-            <div className="done"><span>2</span><b>{t.access}</b><small>{POWER_BI.started}</small></div>
-            <div><span>3</span><b>{t.activation}</b><small>{Math.round(nationalRate * 100)}% {t.complete}</small></div>
+            <div className="done"><span>1</span><b>{t.contracts}</b><small>{Math.round(contractRate * 100)}% {t.complete}</small></div>
+            <div className="done"><span>2</span><b>{lang === "ru" ? "Начали модуль" : "Модульді бастады"}</b><small>{POWER_BI.moduleStarted}</small></div>
+            <div className="done"><span>3</span><b>{lang === "ru" ? "Завершили модуль" : "Модульді аяқтады"}</b><small>{POWER_BI.moduleCompleted}</small></div>
+            <div><span>4</span><b>{t.activation}</b><small>{POWER_BI.activated} · {Math.round(nationalRate * 100)}%</small></div>
           </div>
         </article>
       </section>
@@ -271,7 +282,7 @@ export default function Home() {
         </div>
         <div className="personal-stats">
           <div><span>{lang === "ru" ? "Подписали на старте" : "Басында қол қойған"}</span><strong>{signedAtStart}</strong></div>
-          <div><span>{lang === "ru" ? "Подписали сейчас" : "Қазір қол қойған"}</span><strong>{signed.length}</strong></div>
+          <div><span>{lang === "ru" ? "Подписали сейчас" : "Қазір қол қойған"}</span><strong>{POWER_BI.signed}</strong></div>
           <div className="personal-result"><span>{lang === "ru" ? "Прирост подписавших" : "Қол қойғандар өсімі"}</span><strong>+{signedGrowth}</strong></div>
         </div>
         <div className="activation-stats">

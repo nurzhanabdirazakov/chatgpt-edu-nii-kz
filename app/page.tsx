@@ -8,8 +8,6 @@ type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate"
 
 const PERSONAL = { started: "01.07.2026", unsignedAtStart: 56, activatedAtStart: 137 };
 const POWER_BI = {
-  signed: 39,
-  unsigned: 33,
   moduleStarted: 348,
   moduleCompleted: 302,
   activated: 228,
@@ -178,10 +176,10 @@ export default function Home() {
   const unsigned = rows.filter(i => !i.signed).sort((a, b) => b.licenses - a.licenses);
   const totalLicenses = rows.reduce((sum, i) => sum + i.licenses, 0);
   const nationalRate = totalLicenses > 0 ? POWER_BI.activated / totalLicenses : 0;
-  const contractTotal = POWER_BI.signed + POWER_BI.unsigned;
-  const contractRate = contractTotal > 0 ? POWER_BI.signed / contractTotal : 0;
+  const contractTotal = rows.length;
+  const contractRate = contractTotal > 0 ? signed.length / contractTotal : 0;
   const signedAtStart = Math.max(0, rows.length - PERSONAL.unsignedAtStart);
-  const signedGrowth = Math.max(0, POWER_BI.signed - signedAtStart);
+  const signedGrowth = Math.max(0, signed.length - signedAtStart);
   const activationGrowth = Math.max(0, POWER_BI.activated - PERSONAL.activatedAtStart);
   const regions = [...new Set(rows.map(i => i.region))].sort((a, b) => a.localeCompare(b));
   const selected = rows.find(i => i.id === selectedId) ?? rows[0];
@@ -239,7 +237,7 @@ export default function Home() {
           </div>
           <div className="hero-meter" aria-label={`${t.contracts}: ${Math.round(contractRate * 100)}%`}>
             <div className="ring contract-ring" style={{ "--progress": `${contractRate * 360}deg` } as React.CSSProperties}><div><strong>{Math.round(contractRate * 100)}%</strong><span>{t.contracts}</span></div></div>
-            <small>{POWER_BI.signed} / {contractTotal}</small>
+            <small>{signed.length} / {contractTotal}</small>
           </div>
         </div>
       </div>
@@ -259,9 +257,9 @@ export default function Home() {
       <section className="contract-grid">
         <article className="card contract-card">
           <div className="section-heading"><div><span className="kicker">01 — ONBOARDING</span><h2>{t.contracts}</h2></div><b>{Math.round(contractRate * 100)}%</b></div>
-          <div className="contract-split"><div className="signed"><strong>{POWER_BI.signed}</strong><span>{t.signed}</span></div><div className="unsigned"><strong>{POWER_BI.unsigned}</strong><span>{t.unsigned}</span></div></div>
+          <div className="contract-split"><div className="signed"><strong>{signed.length}</strong><span>{t.signed}</span></div><div className="unsigned"><strong>{unsigned.length}</strong><span>{t.unsigned}</span></div></div>
           <div className="progress"><i style={{ width: `${contractRate * 100}%` }} /></div>
-          <p className="muted">{POWER_BI.signed} {t.of} {contractTotal} {t.institutes}</p>
+          <p className="muted">{signed.length} {t.of} {contractTotal} {t.institutes}</p>
         </article>
 
         <article className="card timeline-card">
@@ -282,7 +280,7 @@ export default function Home() {
         </div>
         <div className="personal-stats">
           <div><span>{lang === "ru" ? "Подписали на старте" : "Басында қол қойған"}</span><strong>{signedAtStart}</strong></div>
-          <div><span>{lang === "ru" ? "Подписали сейчас" : "Қазір қол қойған"}</span><strong>{POWER_BI.signed}</strong></div>
+          <div><span>{lang === "ru" ? "Подписали сейчас" : "Қазір қол қойған"}</span><strong>{signed.length}</strong></div>
           <div className="personal-result"><span>{lang === "ru" ? "Прирост подписавших" : "Қол қойғандар өсімі"}</span><strong>+{signedGrowth}</strong></div>
         </div>
         <div className="activation-stats">

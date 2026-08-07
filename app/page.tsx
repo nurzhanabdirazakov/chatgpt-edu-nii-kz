@@ -7,6 +7,8 @@ type Lang = "ru" | "kz";
 type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate";
 
 const POWER_BI = {
+  signed: 41,
+  unsigned: 31,
   moduleStarted: 348,
   moduleCompleted: 302,
   activated: 241,
@@ -144,7 +146,6 @@ export default function Home() {
   const [rows, setRows] = useState<Institute[]>(institutes);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshState, setRefreshState] = useState<"idle" | "ok" | "error">("idle");
-  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
   const t = copy[lang];
 
   const refreshData = useCallback(async () => {
@@ -155,7 +156,6 @@ export default function Home() {
       const next = institutesFromCsv(await response.text());
       if (!next.length) throw new Error("Google Sheets returned no rows");
       setRows(next);
-      setLastRefresh(new Date());
       setRefreshState("ok");
     } catch (error) {
       console.error(error);
@@ -175,8 +175,6 @@ export default function Home() {
   const unsigned = rows.filter(i => !i.signed).sort((a, b) => b.licenses - a.licenses);
   const totalLicenses = rows.reduce((sum, i) => sum + i.licenses, 0);
   const nationalRate = totalLicenses > 0 ? POWER_BI.activated / totalLicenses : 0;
-  const contractTotal = rows.length;
-  const contractRate = contractTotal > 0 ? signed.length / contractTotal : 0;
   const regions = [...new Set(rows.map(i => i.region))].sort((a, b) => a.localeCompare(b));
   const selected = rows.find(i => i.id === selectedId) ?? rows[0];
   const nameOf = (row: Institute) => cleanName(lang === "ru" ? row.nameRu : row.nameKz);
@@ -222,7 +220,7 @@ export default function Home() {
 
       <aside className="disclaimer">
         <div>i</div>
-        <p>{lang === "ru" ? "Данные могут отображаться с задержкой до 48 часов." : "Деректер 48 сағатқа дейін кешігіп көрсетілуі мүмкін."}<b>{lang === "ru" ? "Последнее обновление данных" : "Деректердің соңғы жаңартылуы"}: {lastRefresh ? new Intl.DateTimeFormat(lang === "ru" ? "ru-RU" : "kk-KZ", { dateStyle: "short", timeStyle: "short" }).format(lastRefresh) : POWER_BI.updated}</b>{refreshState === "error" && <small>{lang === "ru" ? "Не удалось получить свежие строки Google Sheets — показана сохранённая версия." : "Google Sheets-тен жаңа жолдарды алу мүмкін болмады — сақталған нұсқа көрсетілді."}</small>}</p>
+        <p>{lang === "ru" ? "Данные могут отображаться с задержкой до 48 часов." : "Деректер 48 сағатқа дейін кешігіп көрсетілуі мүмкін."}<b>{lang === "ru" ? "Последнее обновление Power BI" : "Power BI соңғы жаңартылуы"}: {POWER_BI.updated}</b>{refreshState === "error" && <small>{lang === "ru" ? "Не удалось получить свежие строки Google Sheets — показана сохранённая версия." : "Google Sheets-тен жаңа жолдарды алу мүмкін болмады — сақталған нұсқа көрсетілді."}</small>}</p>
       </aside>
 
       <section className="project-card card">
@@ -234,8 +232,8 @@ export default function Home() {
 
       <section className="summary-grid" aria-label="Key metrics">
         <article className="summary-card contract-summary">
-          <div><span className="dot good" /><span>{t.signed}</span><strong>{signed.length}</strong></div>
-          <div><span className="dot bad" /><span>{t.unsigned}</span><strong>{unsigned.length}</strong></div>
+          <div><span className="dot good" /><span>{t.signed}</span><strong>{POWER_BI.signed}</strong></div>
+          <div><span className="dot bad" /><span>{t.unsigned}</span><strong>{POWER_BI.unsigned}</strong></div>
         </article>
         <article className="summary-card"><span>{t.licenses}</span><strong>{formatNumber(totalLicenses, lang)}</strong></article>
         <article className="summary-card"><span>{t.activated}</span><strong className="green-value">{formatNumber(POWER_BI.activated, lang)}</strong></article>

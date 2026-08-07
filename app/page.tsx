@@ -9,8 +9,8 @@ type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate"
 const POWER_BI = {
   moduleStarted: 348,
   moduleCompleted: 302,
-  activated: 228,
-  updated: "24.07.2026, 18:40:12",
+  activated: 241,
+  updated: "06.08.2026, 15:00:51",
 };
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6e5pkEU1PhZ-jMbzv1_Gf0c7uzH8nLoh62sK0v3JIGQ8cKRXsZ6pvsVqzfngiVAAE1bem14PB4bGh/pub?gid=1899257310&single=true&output=csv";
 const REFRESH_MS = 12 * 60 * 60 * 1000;

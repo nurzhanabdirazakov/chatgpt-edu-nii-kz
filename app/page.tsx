@@ -6,7 +6,6 @@ import { institutes, type Institute } from "./data";
 type Lang = "ru" | "kz";
 type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate";
 
-const PERSONAL = { started: "01.07.2026", unsignedAtStart: 56, activatedAtStart: 137 };
 const POWER_BI = {
   moduleStarted: 348,
   moduleCompleted: 302,
@@ -178,9 +177,6 @@ export default function Home() {
   const nationalRate = totalLicenses > 0 ? POWER_BI.activated / totalLicenses : 0;
   const contractTotal = rows.length;
   const contractRate = contractTotal > 0 ? signed.length / contractTotal : 0;
-  const signedAtStart = Math.max(0, rows.length - PERSONAL.unsignedAtStart);
-  const signedGrowth = Math.max(0, signed.length - signedAtStart);
-  const activationGrowth = Math.max(0, POWER_BI.activated - PERSONAL.activatedAtStart);
   const regions = [...new Set(rows.map(i => i.region))].sort((a, b) => a.localeCompare(b));
   const selected = rows.find(i => i.id === selectedId) ?? rows[0];
   const nameOf = (row: Institute) => cleanName(lang === "ru" ? row.nameRu : row.nameKz);
@@ -208,120 +204,72 @@ export default function Home() {
     setSort(current => current.key === key ? { key, dir: current.dir === 1 ? -1 : 1 } : { key, dir: key === "name" || key === "region" ? 1 : -1 });
   }
 
-  return <main>
-    <header className="topbar">
-      <div className="shell nav-inner">
-        <a className="brand" href="#top" aria-label="ChatGPT Edu NII Dashboard"><span className="brand-mark">NII</span><span>ChatGPT Edu</span></a>
-        <div className="nav-actions">
-          <button className="refresh-button" onClick={() => void refreshData()} disabled={refreshing} title={lang === "ru" ? "Загрузить свежие данные из Google Sheets" : "Google Sheets-тен жаңа деректерді жүктеу"}><span className={refreshing ? "spin" : ""}>↻</span>{lang === "ru" ? (refreshing ? "Обновление…" : "Обновить данные") : (refreshing ? "Жаңартылуда…" : "Деректерді жаңарту")}</button>
-          <div className="language" aria-label="Language switcher">
-            <button className={lang === "ru" ? "active" : ""} onClick={() => setLang("ru")}>RU</button>
-            <button className={lang === "kz" ? "active" : ""} onClick={() => setLang("kz")}>KZ</button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <section className="hero" id="top">
-      <div className="shell hero-grid">
-        <div>
-          <div className="eyebrow"><span />{t.eyebrow}</div>
-          <h1>{t.title}</h1>
-          <p>{t.intro}</p>
-          <div className="data-stamp"><b>{lang === "ru" ? "Power BI визуально проверен" : "Power BI визуалды тексерілді"}: {POWER_BI.updated}</b><span>{refreshState === "error" ? (lang === "ru" ? "Не удалось обновить Google Sheets — показаны последние сохранённые строки" : "Google Sheets жаңарту мүмкін болмады — соңғы сақталған жолдар көрсетілді") : `${lang === "ru" ? "Google Sheets" : "Google Sheets"}: ${lastRefresh ? new Intl.DateTimeFormat(lang === "ru" ? "ru-RU" : "kk-KZ", { dateStyle: "short", timeStyle: "short" }).format(lastRefresh) : "—"} • ${lang === "ru" ? "автообновление каждые 12 часов" : "әр 12 сағат сайын автоматты жаңарту"}`}</span></div>
-        </div>
-        <div className="hero-meters">
-          <div className="hero-meter" aria-label={`${t.activation}: ${Math.round(nationalRate * 100)}%`}>
-            <div className="ring activation-ring" style={{ "--progress": `${nationalRate * 360}deg` } as React.CSSProperties}><div><strong>{Math.round(nationalRate * 100)}%</strong><span>{t.activation}</span></div></div>
-            <small>{formatNumber(POWER_BI.activated, lang)} / {formatNumber(totalLicenses, lang)}</small>
-          </div>
-          <div className="hero-meter" aria-label={`${t.contracts}: ${Math.round(contractRate * 100)}%`}>
-            <div className="ring contract-ring" style={{ "--progress": `${contractRate * 360}deg` } as React.CSSProperties}><div><strong>{Math.round(contractRate * 100)}%</strong><span>{t.contracts}</span></div></div>
-            <small>{signed.length} / {contractTotal}</small>
-          </div>
-        </div>
-      </div>
-    </section>
-
+  return <main className="page" id="top">
     <div className="shell dashboard">
-      <section className="kpi-grid" aria-label="Key metrics">
-        {[
-          ["01", t.total, rows.length, "navy"], ["02", t.licenses, totalLicenses, "blue"],
-          ["03", lang === "ru" ? "Начали вводный модуль" : "Кіріспе модульді бастады", POWER_BI.moduleStarted, "sky"],
-          ["04", lang === "ru" ? "Завершили вводный модуль" : "Кіріспе модульді аяқтады", POWER_BI.moduleCompleted, "blue"],
-          ["05", t.activated, POWER_BI.activated, "green"],
-          ["06", t.rate, `${Math.round(nationalRate * 100)}%`, "amber"],
-        ].map(([no, label, value, tone]) => <article className={`kpi ${tone}`} key={String(no)}><span>{no}</span><p>{label}</p><strong>{typeof value === "number" ? formatNumber(value, lang) : value}</strong></article>)}
-      </section>
-
-      <section className="contract-grid">
-        <article className="card contract-card">
-          <div className="section-heading"><div><span className="kicker">01 — ONBOARDING</span><h2>{t.contracts}</h2></div><b>{Math.round(contractRate * 100)}%</b></div>
-          <div className="contract-split"><div className="signed"><strong>{signed.length}</strong><span>{t.signed}</span></div><div className="unsigned"><strong>{unsigned.length}</strong><span>{t.unsigned}</span></div></div>
-          <div className="progress"><i style={{ width: `${contractRate * 100}%` }} /></div>
-          <p className="muted">{signed.length} {t.of} {contractTotal} {t.institutes}</p>
-        </article>
-
-        <article className="card timeline-card">
-          <div className="section-heading"><div><span className="kicker">02 — ROADMAP</span><h2>{t.timeline}</h2></div><b>{Math.round(nationalRate * 100)}%</b></div>
-          <div className="timeline">
-            <div className="done"><span>1</span><b>{t.contracts}</b><small>{Math.round(contractRate * 100)}% {t.complete}</small></div>
-            <div className="done"><span>2</span><b>{lang === "ru" ? "Начали модуль" : "Модульді бастады"}</b><small>{POWER_BI.moduleStarted}</small></div>
-            <div className="done"><span>3</span><b>{lang === "ru" ? "Завершили модуль" : "Модульді аяқтады"}</b><small>{POWER_BI.moduleCompleted}</small></div>
-            <div><span>4</span><b>{t.activation}</b><small>{POWER_BI.activated} · {Math.round(nationalRate * 100)}%</small></div>
+      <header className="site-header">
+        <div>
+          <h1>{lang === "ru" ? "ChatGPT Edu в НИИ Казахстана" : "Қазақстан ҒЗИ-ларындағы ChatGPT Edu"}</h1>
+          <p>{lang === "ru" ? "Показатели активации лицензий ChatGPT Edu по научно-исследовательским институтам Казахстана." : "Қазақстанның ғылыми-зерттеу институттарындағы ChatGPT Edu лицензияларын белсендіру көрсеткіштері."}</p>
+        </div>
+        <div className="header-actions">
+          <button className="refresh-button" onClick={() => void refreshData()} disabled={refreshing} title={lang === "ru" ? "Обновить данные" : "Деректерді жаңарту"} aria-label={lang === "ru" ? "Обновить данные" : "Деректерді жаңарту"}><span className={refreshing ? "spin" : ""}>↻</span></button>
+          <div className="language" aria-label="Language switcher">
+            <button className={lang === "kz" ? "active" : ""} onClick={() => setLang("kz")}>ҚАЗ</button>
+            <button className={lang === "ru" ? "active" : ""} onClick={() => setLang("ru")}>РУС</button>
           </div>
+        </div>
+      </header>
+
+      <aside className="disclaimer">
+        <div>i</div>
+        <p>{lang === "ru" ? "Данные могут отображаться с задержкой до 48 часов." : "Деректер 48 сағатқа дейін кешігіп көрсетілуі мүмкін."}<b>{lang === "ru" ? "Последнее обновление данных" : "Деректердің соңғы жаңартылуы"}: {lastRefresh ? new Intl.DateTimeFormat(lang === "ru" ? "ru-RU" : "kk-KZ", { dateStyle: "short", timeStyle: "short" }).format(lastRefresh) : POWER_BI.updated}</b>{refreshState === "error" && <small>{lang === "ru" ? "Не удалось получить свежие строки Google Sheets — показана сохранённая версия." : "Google Sheets-тен жаңа жолдарды алу мүмкін болмады — сақталған нұсқа көрсетілді."}</small>}</p>
+      </aside>
+
+      <section className="project-card card">
+        <div className="project-head"><b>{lang === "ru" ? "СРОКИ ПРОЕКТА · 12 МЕСЯЦЕВ" : "ЖОБА МЕРЗІМІ · 12 АЙ"}</b><span>{lang === "ru" ? "Осталось 234 дн. · пройдено 36%" : "234 күн қалды · 36% өтті"}</span></div>
+        <div className="project-progress"><i style={{ width: "36%" }} /></div>
+        <div className="months"><span>мар’26</span><span>апр</span><span>май</span><span>июн</span><span>июл</span><span>авг</span><span>сен</span><span>окт</span><span>ноя</span><span>дек</span><span>янв</span><span>фев</span><span>мар’27</span></div>
+        <div className="project-dates"><b>30.03.2026</b><b>29.03.2027</b></div>
+      </section>
+
+      <section className="summary-grid" aria-label="Key metrics">
+        <article className="summary-card contract-summary">
+          <div><span className="dot good" /><span>{t.signed}</span><strong>{signed.length}</strong></div>
+          <div><span className="dot bad" /><span>{t.unsigned}</span><strong>{unsigned.length}</strong></div>
         </article>
-      </section>
-
-      <section className="card personal-card">
-        <div className="section-heading">
-          <div><span className="kicker">03 — PERSONAL IMPACT</span><h2>{t.personalTitle}</h2><p>{t.personalHint}</p></div>
-          <div className="personal-date"><span>{t.personalStart}</span><strong>{PERSONAL.started}</strong></div>
-        </div>
-        <div className="personal-stats">
-          <div><span>{lang === "ru" ? "Подписали на старте" : "Басында қол қойған"}</span><strong>{signedAtStart}</strong></div>
-          <div><span>{lang === "ru" ? "Подписали сейчас" : "Қазір қол қойған"}</span><strong>{signed.length}</strong></div>
-          <div className="personal-result"><span>{lang === "ru" ? "Прирост подписавших" : "Қол қойғандар өсімі"}</span><strong>+{signedGrowth}</strong></div>
-        </div>
-        <div className="activation-stats">
-          <div><span>{lang === "ru" ? "Активировали на старте" : "Басында белсендірілді"}</span><strong>{PERSONAL.activatedAtStart}</strong><small>{PERSONAL.started}</small></div>
-          <div className="activation-now"><span>{lang === "ru" ? "Активировали сейчас" : "Қазір белсендірілді"}</span><strong>{POWER_BI.activated}</strong><small>+{activationGrowth}</small></div>
-        </div>
-      </section>
-
-      <section className="card profile-card">
-        <div className="section-heading"><div><span className="kicker">04 — SPOTLIGHT</span><h2>{t.profile}</h2></div></div>
-        <label className="profile-search"><span>⌕</span><input list="institutes" defaultValue={nameOf(selected)} onChange={e => { const found = rows.find(i => nameOf(i) === e.target.value); if (found) setSelectedId(found.id); }} placeholder={t.profileHint} /></label>
-        <datalist id="institutes">{rows.slice().sort((a,b) => nameOf(a).localeCompare(nameOf(b))).map(i => <option key={i.id} value={nameOf(i)} />)}</datalist>
-        <div className="profile-content">
-          <div className="profile-main"><span className="id-badge">NII — {String(selected.id).padStart(2, "0")}</span><h3>{nameOf(selected)}</h3><div className="profile-meta"><span>{selected.region}</span><span>{selected.district}</span></div></div>
-          <div className="profile-stats">
-            <div><span>{t.licenses}</span><strong>{formatNumber(selected.licenses, lang)}</strong></div>
-            <div><span>{t.started}</span><strong>{selected.started}</strong></div>
-            <div><span>{t.activated}</span><strong>{selected.activated}</strong></div>
-            <div><span>{t.rate}</span><strong>{selected.licenses ? `${Math.round(ratio(selected) * 100)}%` : "—"}</strong></div>
-          </div>
-          <div className="profile-status"><span className={`pill ${statusFor(selected,lang).key}`}>{statusFor(selected,lang).label}</span><small>{t.contract}: <b>{selected.signed ? t.yes : t.no}</b></small></div>
-        </div>
+        <article className="summary-card"><span>{t.licenses}</span><strong>{formatNumber(totalLicenses, lang)}</strong></article>
+        <article className="summary-card"><span>{t.activated}</span><strong className="green-value">{formatNumber(POWER_BI.activated, lang)}</strong></article>
+        <article className="summary-card"><span>{t.rate}</span><strong className="amber-value">{Math.round(nationalRate * 100)}%</strong></article>
       </section>
 
       <section className="comparison">
-        <article className="card ranking"><div className="section-heading"><div><span className="kicker">05 — PERFORMANCE</span><h2>{t.leaders}</h2><p>{t.leaderHint}</p></div><b>{leaders.length}</b></div><div className="rank-list">{leaders.map(row => <BarRow key={row.id} row={row} lang={lang} tone="good" />)}</div></article>
-        <article className="card ranking"><div className="section-heading"><div><span className="kicker">06 — FOLLOW-UP</span><h2>{t.attention}</h2><p>{t.attentionHint}</p></div><b>{attention.length}</b></div><div className="rank-list">{attention.map(row => <BarRow key={row.id} row={row} lang={lang} tone="bad" />)}</div></article>
+        <article className="card ranking"><div className="section-heading"><div><h2>{t.leaders}</h2><p>{t.leaderHint}</p></div></div><div className="rank-list">{leaders.map(row => <BarRow key={row.id} row={row} lang={lang} tone="good" />)}</div></article>
+        <article className="card ranking"><div className="section-heading"><div><h2>{t.attention}</h2><p>{t.attentionHint}</p></div></div><div className="rank-list">{attention.map(row => <BarRow key={row.id} row={row} lang={lang} tone="bad" />)}</div></article>
+      </section>
+
+      <section className="card profile-card">
+        <div className="section-heading"><div><h2>{t.profile}</h2><p>{t.profileHint}</p></div></div>
+        <label className="profile-search"><span>⌕</span><input list="institutes" defaultValue={nameOf(selected)} onChange={e => { const found = rows.find(i => nameOf(i) === e.target.value); if (found) setSelectedId(found.id); }} placeholder={t.profileHint} /></label>
+        <datalist id="institutes">{rows.slice().sort((a,b) => nameOf(a).localeCompare(nameOf(b))).map(i => <option key={i.id} value={nameOf(i)} />)}</datalist>
+        <div className="profile-metrics">
+          <div className="profile-metric navy"><span>{t.licenses}</span><strong>{formatNumber(selected.licenses, lang)}</strong></div>
+          <div className="profile-metric blue"><span>{t.started}</span><strong>{selected.started}</strong></div>
+          <div className="profile-metric sky"><span>{t.activated}</span><strong>{selected.activated}</strong></div>
+          <div className="profile-metric green"><span>{t.rate}</span><strong>{selected.licenses ? `${Math.round(ratio(selected) * 100)}%` : "—"}</strong></div>
+        </div>
+        <div className="profile-details"><div><span>NII — {String(selected.id).padStart(2, "0")}</span><h3>{nameOf(selected)}</h3><p>{selected.region} · {selected.district}</p></div><div><span className={`pill ${statusFor(selected,lang).key}`}>{statusFor(selected,lang).label}</span><small>{t.contract}: <b>{selected.signed ? t.yes : t.no}</b></small></div></div>
       </section>
 
       <section className="card table-card">
-        <div className="section-heading"><div><span className="kicker">07 — DIRECTORY</span><h2>{t.fullList}</h2><p>{t.tableNote}</p></div><b>{filtered.length}</b></div>
+        <div className="section-heading"><div><h2>{t.fullList}</h2><p>{t.tableNote}</p></div><b>{filtered.length}</b></div>
         <div className="filters"><label><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder={t.search} /></label><select value={region} onChange={e => setRegion(e.target.value)}><option value="all">{t.allRegions}</option>{regions.map(r => <option key={r}>{r}</option>)}</select><select value={status} onChange={e => setStatus(e.target.value)}><option value="all">{t.allStatuses}</option><option value="excellent">{t.excellent}</option><option value="track">{t.onTrack}</option><option value="early">{t.early}</option><option value="attention">{t.needsAttention}</option></select></div>
         <div className="table-wrap"><table><thead><tr><th>№</th><th><button onClick={() => changeSort("name")}>{t.name} ↕</button></th><th><button onClick={() => changeSort("region")}>{t.region} ↕</button></th><th><button onClick={() => changeSort("licenses")}>{t.licenses} ↕</button></th><th><button onClick={() => changeSort("started")}>{t.started} ↕</button></th><th><button onClick={() => changeSort("activated")}>{t.activated} ↕</button></th><th><button onClick={() => changeSort("rate")}>{t.rate} ↕</button></th><th>{t.status}</th></tr></thead><tbody>{filtered.map(row => <tr key={row.id} onClick={() => { setSelectedId(row.id); document.querySelector(".profile-card")?.scrollIntoView({behavior:"smooth"}); }}><td>{row.id}</td><td><strong>{nameOf(row)}</strong><small>{row.district}</small></td><td>{row.region}</td><td>{formatNumber(row.licenses, lang)}</td><td>{row.started}</td><td>{row.activated}</td><td><div className="rate-cell"><b>{row.licenses ? `${Math.round(ratio(row)*100)}%` : "—"}</b><span><i style={{ width: `${Math.min(100, ratio(row) * 100)}%` }} /></span></div></td><td><span className={`pill ${statusFor(row,lang).key}`}>{statusFor(row,lang).label}</span></td></tr>)}</tbody></table></div>
       </section>
 
       <section className="card unsigned-card">
-        <div className="section-heading"><div><span className="kicker">08 — ONBOARDING QUEUE</span><h2>{t.unsignedTitle}</h2><p>{t.unsignedHint}</p></div><b>{unsigned.length}</b></div>
+        <div className="section-heading"><div><h2>{t.unsignedTitle}</h2><p>{t.unsignedHint}</p></div><b>{unsigned.length}</b></div>
         <div className="unsigned-grid">{unsigned.map(row => <button key={row.id} onClick={() => { setSelectedId(row.id); document.querySelector(".profile-card")?.scrollIntoView({behavior:"smooth"}); }}><span>{String(row.id).padStart(2,"0")}</span><div><strong>{shortName(nameOf(row))}</strong><small>{row.region} · {row.district}</small></div><b>{formatNumber(row.licenses,lang)}</b></button>)}</div>
       </section>
-
-      <aside className="disclaimer"><div>!</div><p><strong>{t.disclaimerTitle}</strong>{lang === "ru" ? "Национальные KPI визуально считываются с публичного отчёта Power BI. Строки организаций загружаются из Google Sheets, поэтому их сумма может отличаться от итога Power BI из-за особенностей агрегации. Google Sheets проверяется при открытии, по кнопке и каждые 12 часов." : "Ұлттық KPI жалпыға қолжетімді Power BI есебінен визуалды түрде оқылады. Ұйым жолдары Google Sheets-тен жүктеледі, сондықтан агрегация ерекшеліктеріне байланысты олардың қосындысы Power BI қорытындысынан өзгеше болуы мүмкін. Google Sheets бет ашылғанда, батырма арқылы және әр 12 сағат сайын тексеріледі."}<b>{lang === "ru" ? "Power BI проверен" : "Power BI тексерілді"}: {POWER_BI.updated}</b></p></aside>
     </div>
 
     <footer><div className="shell"><b>{t.footer}</b><span>Power BI + Google Sheets</span></div></footer>

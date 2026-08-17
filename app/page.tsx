@@ -7,12 +7,15 @@ type Lang = "ru" | "kz";
 type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate";
 
 const POWER_BI = {
-  signed: 41,
-  unsigned: 31,
-  moduleStarted: 348,
-  moduleCompleted: 302,
-  activated: 241,
-  updated: "06.08.2026, 15:00:51",
+  signed: 44,
+  unsigned: 28,
+  moduleStarted: 436,
+  moduleCompleted: 379,
+  activated: 291,
+  updated: "14.08.2026, 12:50:50",
+};
+const POWER_BI_ROWS: Record<number, [signed: boolean, started: number, activated: number]> = {
+  1:[false,0,0],5:[false,0,0],11:[false,0,0],12:[false,0,0],13:[false,0,0],14:[false,0,0],15:[false,0,0],16:[true,2,0],17:[false,0,0],18:[false,0,0],19:[false,0,0],21:[false,0,0],25:[false,0,0],26:[false,0,0],27:[false,0,0],30:[false,0,0],35:[false,0,0],36:[false,0,0],38:[false,0,0],41:[false,0,0],45:[false,0,0],46:[false,0,0],48:[false,0,0],53:[true,5,1],55:[false,0,0],57:[false,0,0],58:[true,0,0],60:[false,0,0],62:[true,4,4],64:[false,0,0],66:[false,0,0],67:[true,0,0],70:[true,0,0],72:[false,0,0],71:[true,15,9],23:[true,1,0],24:[true,1,0],31:[true,14,6],65:[true,0,0],2:[true,3,1],3:[true,0,0],28:[true,1,1],29:[true,21,14],47:[true,0,0],49:[true,4,3],56:[true,7,3],4:[true,22,19],6:[true,1,0],7:[true,14,9],8:[true,81,70],9:[true,20,15],10:[true,13,6],20:[true,0,0],22:[true,28,25],32:[true,15,12],33:[true,13,11],34:[true,14,10],37:[true,3,3],39:[true,18,10],40:[true,19,16],42:[true,19,12],43:[true,0,0],44:[true,15,14],50:[true,0,0],51:[true,1,0],52:[true,5,3],54:[true,0,0],59:[true,8,4],61:[true,10,9],63:[true,0,0],68:[true,3,1],69:[true,0,0],
 };
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6e5pkEU1PhZ-jMbzv1_Gf0c7uzH8nLoh62sK0v3JIGQ8cKRXsZ6pvsVqzfngiVAAE1bem14PB4bGh/pub?gid=1899257310&single=true&output=csv";
 const REFRESH_MS = 12 * 60 * 60 * 1000;
@@ -23,7 +26,7 @@ const copy = {
     title: "Подключение научно-исследовательских институтов к ChatGPT Edu",
     intro: "Открытая сводка по договорам, выдаче доступов и активации сотрудников научных организаций.",
     updated: "Данные Power BI обновлены",
-    sheet: "Снимок Google Sheets: 16.07.2026",
+    sheet: "Google Sheets обновлён: 17.08.2026",
     total: "Всего НИИ", licenses: "Заявленные места", started: "Получили логин", activated: "Активировали", rate: "Активация от мест",
     signed: "Подписали договор", unsigned: "Не подписали", of: "из", institutes: "организаций",
     timeline: "Прогресс проекта", contracts: "Договоры", access: "Доступы", activation: "Активация", complete: "завершено",
@@ -42,7 +45,7 @@ const copy = {
     eyebrow: "Ұлттық мониторинг • Қазақстан",
     title: "Ғылыми-зерттеу институттарын ChatGPT Edu жүйесіне қосу",
     intro: "Ғылыми ұйымдар қызметкерлерінің шарттары, қолжетімділігі және белсендірілуі туралы ашық есеп.",
-    updated: "Power BI деректері жаңартылды", sheet: "Google Sheets деректер кесіндісі: 16.07.2026",
+    updated: "Power BI деректері жаңартылды", sheet: "Google Sheets жаңартылды: 17.08.2026",
     total: "Барлық ҒЗИ", licenses: "Сұралған орындар", started: "Логин алды", activated: "Белсендірді", rate: "Орындар бойынша белсендіру",
     signed: "Шартқа қол қойды", unsigned: "Қол қоймады", of: "ішінен", institutes: "ұйым",
     timeline: "Жоба барысы", contracts: "Шарттар", access: "Қолжетімділік", activation: "Белсендіру", complete: "аяқталды",
@@ -127,6 +130,13 @@ function institutesFromCsv(text: string): Institute[] {
   }));
 }
 
+function withPowerBiRows(rows: Institute[]) {
+  return rows.map(row => {
+    const current = POWER_BI_ROWS[row.id];
+    return current ? { ...row, signed: current[0], started: current[1], activated: current[2] } : row;
+  });
+}
+
 function BarRow({ row, lang, tone }: { row: Institute; lang: Lang; tone: "good" | "bad" }) {
   const value = ratio(row);
   return <div className="rank-row">
@@ -143,7 +153,7 @@ export default function Home() {
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "rate", dir: -1 });
   const [selectedId, setSelectedId] = useState(8);
-  const [rows, setRows] = useState<Institute[]>(institutes);
+  const [rows, setRows] = useState<Institute[]>(() => withPowerBiRows(institutes));
   const [refreshing, setRefreshing] = useState(false);
   const [refreshState, setRefreshState] = useState<"idle" | "ok" | "error">("idle");
   const t = copy[lang];
@@ -155,7 +165,7 @@ export default function Home() {
       if (!response.ok) throw new Error(`Google Sheets: ${response.status}`);
       const next = institutesFromCsv(await response.text());
       if (!next.length) throw new Error("Google Sheets returned no rows");
-      setRows(next);
+      setRows(withPowerBiRows(next));
       setRefreshState("ok");
     } catch (error) {
       console.error(error);

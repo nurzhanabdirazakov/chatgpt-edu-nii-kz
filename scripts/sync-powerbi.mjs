@@ -47,7 +47,8 @@ function matchInstitute(name, institutes, used = new Set()) {
 
 async function rowLabels(grid) {
   return grid.locator('[role="row"]').evaluateAll(rows => rows.map(row => {
-    const state = row.querySelector('[aria-label="Collapsed"], [aria-label="Expanded"]')?.getAttribute("aria-label") || "";
+    const toggle = row.querySelector('[aria-expanded]');
+    const state = toggle ? (toggle.getAttribute("aria-expanded") === "true" ? "Expanded" : "Collapsed") : "Leaf";
     const cells = [...row.querySelectorAll('[role="rowheader"], [role="columnheader"], [role="gridcell"]')]
       .map(cell => (cell.textContent || "").replace(/\s+/g, " ").trim())
       .filter(Boolean);
@@ -141,8 +142,8 @@ try {
   await expandToInstitutes(page, countGrids[0].grid);
   const signedLabels = await scrapeFocusedRows(page, countGrids[0].grid);
   const signedNames = signedLabels
-    .filter(label => /^Collapsed\s/.test(label))
-    .map(label => label.replace(/^Collapsed\s+/, "").replace(/\s+\d+\s+\d+$/, ""));
+    .filter(label => /^Leaf\s/.test(label) && !/^Leaf\s+Итого\s/.test(label) && /\s+\d+\s+\d+$/.test(label))
+    .map(label => label.replace(/^Leaf\s+/, "").replace(/\s+\d+\s+\d+$/, ""));
   const signedIds = [];
   const usedSigned = new Set();
   for (const name of signedNames) {
@@ -172,8 +173,8 @@ try {
   const activationLabels = await scrapeFocusedRows(page, activationGrid);
   const rows = {};
   const usedRows = new Set();
-  for (const label of activationLabels.filter(value => /^Collapsed\s/.test(value))) {
-    const clean = label.replace(/^Collapsed\s+/, "");
+  for (const label of activationLabels.filter(value => /^Leaf\s/.test(value) && !/^Leaf\s+Итого\s/.test(value))) {
+    const clean = label.replace(/^Leaf\s+/, "");
     const match = clean.match(/^(.*?)(?:\s+(\d+))(?:\s+(\d+))?(?:\s+(\d+))?$/);
     if (!match) continue;
     const institute = matchInstitute(match[1], catalogue, usedRows);

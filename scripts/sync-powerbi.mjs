@@ -114,7 +114,7 @@ async function scrapeFocusedRows(page, grid) {
 
 function totalFrom(labels, width) {
   const totals = labels
-    .filter(label => /^Итого\s/.test(label))
+    .filter(label => /^(?:(?:Leaf|Expanded|Collapsed)\s+)?Итого\s/.test(label))
     .map(label => [...label.matchAll(/\d+/g)].map(match => Number(match[0])))
     .filter(values => values.length >= width);
   return totals[0]?.slice(-width) ?? null;

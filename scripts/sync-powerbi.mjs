@@ -147,7 +147,12 @@ try {
   const signedIds = [];
   const usedSigned = new Set();
   for (const name of signedNames) {
-    const institute = matchInstitute(name, catalogue, usedSigned);
+    let institute;
+    try {
+      institute = matchInstitute(name, catalogue, usedSigned);
+    } catch {
+      continue;
+    }
     usedSigned.add(institute.id);
     signedIds.push(institute.id);
   }
@@ -177,7 +182,12 @@ try {
     const clean = label.replace(/^Leaf\s+/, "");
     const match = clean.match(/^(.*?)(?:\s+(\d+))(?:\s+(\d+))?(?:\s+(\d+))?$/);
     if (!match) continue;
-    const institute = matchInstitute(match[1], catalogue, usedRows);
+    let institute;
+    try {
+      institute = matchInstitute(match[1], catalogue, usedRows);
+    } catch {
+      continue;
+    }
     usedRows.add(institute.id);
     rows[String(institute.id)] = [Number(match[3] ?? 0), Number(match[4] ?? 0)];
   }

@@ -5,9 +5,11 @@ const REPORT_URL = "https://app.powerbi.com/view?r=eyJrIjoiMmI5ZGE3NjctYmVkYi00M
 const OUTPUT = new URL("../public/data/power-bi.json", import.meta.url);
 
 function loadInstitutes(source) {
-  const start = source.indexOf("[");
+  const marker = "export const institutes: Institute[] = ";
+  const markerIndex = source.indexOf(marker);
+  const start = source.indexOf("[", markerIndex + marker.length);
   const end = source.lastIndexOf("];");
-  if (start < 0 || end < 0) throw new Error("Could not read institute catalogue");
+  if (markerIndex < 0 || start < 0 || end < 0) throw new Error("Could not read institute catalogue");
   return JSON.parse(source.slice(start, end + 1));
 }
 

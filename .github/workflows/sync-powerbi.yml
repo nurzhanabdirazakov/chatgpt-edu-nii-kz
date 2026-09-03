@@ -1,0 +1,41 @@
+name: Sync Power BI data
+
+on:
+  schedule:
+    - cron: "17 */12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: power-bi-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install browser automation
+        run: npm install --no-save --package-lock=false playwright@1.55.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Read the public Power BI report
+        run: node scripts/sync-powerbi.mjs
+      - name: Publish changed data
+        run: |
+          if git diff --quiet -- public/data/power-bi.json; then
+            echo "Power BI data is already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/power-bi.json
+          git commit -m "Automatically refresh Power BI data"
+          git push

@@ -5,19 +5,31 @@ import { institutes, type Institute } from "./data";
 
 type Lang = "ru" | "kz";
 type SortKey = "name" | "region" | "licenses" | "started" | "activated" | "rate";
-
-const POWER_BI = {
-  signed: 48,
-  unsigned: 24,
-  moduleStarted: 490,
-  moduleCompleted: 432,
-  activated: 340,
-  updated: "24.08.2026, 10:46:45",
+type PowerBiSnapshot = {
+  signed: number;
+  unsigned: number;
+  moduleStarted: number;
+  moduleCompleted: number;
+  activated: number;
+  updated: string;
+  signedIds: number[];
+  rows: Record<string, [started: number, activated: number]>;
 };
-const POWER_BI_ROWS: Record<number, [signed: boolean, started: number, activated: number]> = {
-  1:[false,0,0],5:[false,0,0],11:[false,0,0],12:[false,0,0],13:[false,0,0],14:[true,0,0],15:[false,0,0],16:[true,28,20],17:[false,0,0],18:[false,0,0],19:[false,0,0],21:[false,0,0],23:[true,1,0],24:[true,1,1],25:[false,0,0],26:[false,0,0],27:[false,0,0],30:[false,0,0],31:[true,17,8],35:[false,0,0],36:[false,0,0],38:[false,0,0],41:[false,0,0],45:[false,0,0],46:[false,0,0],48:[true,0,0],53:[true,5,4],55:[false,0,0],57:[false,0,0],58:[true,0,0],60:[false,0,0],62:[true,6,6],64:[true,0,0],65:[true,0,0],66:[false,0,0],67:[true,0,0],70:[true,0,0],71:[true,15,9],72:[true,0,0],2:[true,3,1],3:[true,0,0],28:[true,1,1],29:[true,21,14],47:[true,0,0],49:[true,4,3],56:[true,7,4],4:[true,24,21],6:[true,1,0],7:[true,17,11],8:[true,86,74],9:[true,20,15],10:[true,13,7],20:[true,0,0],22:[true,29,26],32:[true,15,12],33:[true,13,11],34:[true,14,10],37:[true,3,3],39:[true,18,10],40:[true,27,23],42:[true,19,12],43:[true,0,0],44:[true,16,15],50:[true,0,0],51:[true,1,0],52:[true,6,3],54:[true,0,0],59:[true,9,6],61:[true,10,9],63:[true,0,0],68:[true,3,1],69:[true,0,0],
+
+const POWER_BI_FALLBACK: PowerBiSnapshot = {
+  signed: 50,
+  unsigned: 22,
+  moduleStarted: 538,
+  moduleCompleted: 478,
+  activated: 367,
+  updated: "03.09.2026, 13:08:46",
+  signedIds: [2,3,4,6,7,8,9,10,14,16,20,22,23,24,28,29,30,31,32,33,34,37,39,40,42,43,44,45,47,48,49,50,51,52,53,54,56,58,59,61,62,63,64,65,67,68,69,70,71,72],
+  rows: {
+    2:[3,1],4:[25,22],6:[1,0],7:[18,12],8:[87,75],9:[21,15],10:[13,7],16:[43,26],22:[30,28],23:[1,0],24:[1,1],28:[10,9],29:[23,15],31:[19,9],32:[15,12],33:[13,11],34:[15,10],37:[3,3],39:[18,10],40:[29,26],42:[19,12],44:[16,15],48:[2,0],49:[4,3],51:[3,0],52:[6,3],53:[8,4],56:[7,4],59:[10,7],61:[10,9],62:[7,7],68:[3,1],71:[15,9],
+  },
 };
 const SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6e5pkEU1PhZ-jMbzv1_Gf0c7uzH8nLoh62sK0v3JIGQ8cKRXsZ6pvsVqzfngiVAAE1bem14PB4bGh/pub?gid=1899257310&single=true&output=csv";
+const POWER_BI_DATA = "./data/power-bi.json";
 const REFRESH_MS = 12 * 60 * 60 * 1000;
 
 const copy = {
@@ -130,10 +142,16 @@ function institutesFromCsv(text: string): Institute[] {
   }));
 }
 
-function withPowerBiRows(rows: Institute[]) {
+function withPowerBiRows(rows: Institute[], snapshot: PowerBiSnapshot) {
+  const signedIds = new Set(snapshot.signedIds);
   return rows.map(row => {
-    const current = POWER_BI_ROWS[row.id];
-    return current ? { ...row, signed: current[0], started: current[1], activated: current[2] } : row;
+    const current = snapshot.rows[String(row.id)];
+    return {
+      ...row,
+      signed: signedIds.has(row.id),
+      started: current?.[0] ?? 0,
+      activated: current?.[1] ?? 0,
+    };
   });
 }
 
@@ -153,7 +171,8 @@ export default function Home() {
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "rate", dir: -1 });
   const [selectedId, setSelectedId] = useState(8);
-  const [rows, setRows] = useState<Institute[]>(() => withPowerBiRows(institutes));
+  const [powerBi, setPowerBi] = useState<PowerBiSnapshot>(POWER_BI_FALLBACK);
+  const [rows, setRows] = useState<Institute[]>(() => withPowerBiRows(institutes, POWER_BI_FALLBACK));
   const [refreshing, setRefreshing] = useState(false);
   const [refreshState, setRefreshState] = useState<"idle" | "ok" | "error">("idle");
   const t = copy[lang];
@@ -161,11 +180,18 @@ export default function Home() {
   const refreshData = useCallback(async () => {
     setRefreshing(true);
     try {
-      const response = await fetch(`${SHEET_CSV}&t=${Date.now()}`, { cache: "no-store" });
-      if (!response.ok) throw new Error(`Google Sheets: ${response.status}`);
-      const next = institutesFromCsv(await response.text());
+      const stamp = Date.now();
+      const [sheetResponse, powerBiResponse] = await Promise.all([
+        fetch(`${SHEET_CSV}&t=${stamp}`, { cache: "no-store" }),
+        fetch(`${POWER_BI_DATA}?t=${stamp}`, { cache: "no-store" }),
+      ]);
+      if (!sheetResponse.ok) throw new Error(`Google Sheets: ${sheetResponse.status}`);
+      if (!powerBiResponse.ok) throw new Error(`Power BI snapshot: ${powerBiResponse.status}`);
+      const next = institutesFromCsv(await sheetResponse.text());
       if (!next.length) throw new Error("Google Sheets returned no rows");
-      setRows(withPowerBiRows(next));
+      const nextPowerBi = await powerBiResponse.json() as PowerBiSnapshot;
+      setPowerBi(nextPowerBi);
+      setRows(withPowerBiRows(next, nextPowerBi));
       setRefreshState("ok");
     } catch (error) {
       console.error(error);
@@ -184,7 +210,7 @@ export default function Home() {
   const signed = rows.filter(i => i.signed);
   const unsigned = rows.filter(i => !i.signed).sort((a, b) => b.licenses - a.licenses);
   const totalLicenses = rows.reduce((sum, i) => sum + i.licenses, 0);
-  const nationalRate = totalLicenses > 0 ? POWER_BI.activated / totalLicenses : 0;
+  const nationalRate = totalLicenses > 0 ? powerBi.activated / totalLicenses : 0;
   const regions = [...new Set(rows.map(i => i.region))].sort((a, b) => a.localeCompare(b));
   const selected = rows.find(i => i.id === selectedId) ?? rows[0];
   const nameOf = (row: Institute) => cleanName(lang === "ru" ? row.nameRu : row.nameKz);
@@ -230,7 +256,7 @@ export default function Home() {
 
       <aside className="disclaimer">
         <div>i</div>
-        <p>{lang === "ru" ? "Данные могут отображаться с задержкой до 48 часов." : "Деректер 48 сағатқа дейін кешігіп көрсетілуі мүмкін."}<b>{lang === "ru" ? "Последнее обновление Power BI" : "Power BI соңғы жаңартылуы"}: {POWER_BI.updated}</b>{refreshState === "error" && <small>{lang === "ru" ? "Не удалось получить свежие строки Google Sheets — показана сохранённая версия." : "Google Sheets-тен жаңа жолдарды алу мүмкін болмады — сақталған нұсқа көрсетілді."}</small>}</p>
+        <p>{lang === "ru" ? "Данные могут отображаться с задержкой до 48 часов." : "Деректер 48 сағатқа дейін кешігіп көрсетілуі мүмкін."}<b>{lang === "ru" ? "Последнее обновление Power BI" : "Power BI соңғы жаңартылуы"}: {powerBi.updated}</b>{refreshState === "error" && <small>{lang === "ru" ? "Не удалось получить свежие данные — показана сохранённая версия." : "Жаңа деректерді алу мүмкін болмады — сақталған нұсқа көрсетілді."}</small>}</p>
       </aside>
 
       <section className="project-card card">
@@ -242,11 +268,11 @@ export default function Home() {
 
       <section className="summary-grid" aria-label="Key metrics">
         <article className="summary-card contract-summary">
-          <div><span className="dot good" /><span>{t.signed}</span><strong>{POWER_BI.signed}</strong></div>
-          <div><span className="dot bad" /><span>{t.unsigned}</span><strong>{POWER_BI.unsigned}</strong></div>
+          <div><span className="dot good" /><span>{t.signed}</span><strong>{powerBi.signed}</strong></div>
+          <div><span className="dot bad" /><span>{t.unsigned}</span><strong>{powerBi.unsigned}</strong></div>
         </article>
         <article className="summary-card"><span>{t.licenses}</span><strong>{formatNumber(totalLicenses, lang)}</strong></article>
-        <article className="summary-card"><span>{t.activated}</span><strong className="green-value">{formatNumber(POWER_BI.activated, lang)}</strong></article>
+        <article className="summary-card"><span>{t.activated}</span><strong className="green-value">{formatNumber(powerBi.activated, lang)}</strong></article>
         <article className="summary-card"><span>{t.rate}</span><strong className="amber-value">{Math.round(nationalRate * 100)}%</strong></article>
       </section>
 

@@ -51,7 +51,8 @@ async function rowLabels(grid) {
 
 async function reportGrids(page) {
   await page.getByRole("grid").first().waitFor({ state: "visible", timeout: 90_000 });
-  await page.waitForTimeout(1_000);
+  await page.getByText("Итого", { exact: true }).first().waitFor({ state: "visible", timeout: 90_000 });
+  await page.waitForTimeout(1_500);
   return page.getByRole("grid").all();
 }
 

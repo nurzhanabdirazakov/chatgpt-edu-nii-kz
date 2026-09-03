@@ -46,7 +46,13 @@ function matchInstitute(name, institutes, used = new Set()) {
 }
 
 async function rowLabels(grid) {
-  return grid.locator('[role="row"]').evaluateAll(rows => rows.map(row => row.getAttribute("aria-label") || row.textContent || ""));
+  return grid.locator('[role="row"]').evaluateAll(rows => rows.map(row => {
+    const state = row.querySelector('[aria-label="Collapsed"], [aria-label="Expanded"]')?.getAttribute("aria-label") || "";
+    const cells = [...row.querySelectorAll('[role="rowheader"], [role="columnheader"], [role="gridcell"]')]
+      .map(cell => (cell.textContent || "").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    return [state, ...cells].filter(Boolean).join(" ");
+  }));
 }
 
 async function reportGrids(page) {

@@ -17,12 +17,12 @@ type PowerBiSnapshot = {
 };
 
 const POWER_BI_FALLBACK: PowerBiSnapshot = {
-  signed: 50,
-  unsigned: 22,
+  signed: 55,
+  unsigned: 17,
   moduleStarted: 538,
   moduleCompleted: 478,
-  activated: 367,
-  updated: "03.09.2026, 13:08:46",
+  activated: 394,
+  updated: "08.09.2026, 10:33:26",
   signedIds: [2,3,4,6,7,8,9,10,14,16,20,22,23,24,28,29,30,31,32,33,34,37,39,40,42,43,44,45,47,48,49,50,51,52,53,54,56,58,59,61,62,63,64,65,67,68,69,70,71,72],
   rows: {
     2:[3,1],4:[25,22],6:[1,0],7:[18,12],8:[87,75],9:[21,15],10:[13,7],16:[43,26],22:[30,28],23:[1,0],24:[1,1],28:[10,9],29:[23,15],31:[19,9],32:[15,12],33:[13,11],34:[15,10],37:[3,3],39:[18,10],40:[29,26],42:[19,12],44:[16,15],48:[2,0],49:[4,3],51:[3,0],52:[6,3],53:[8,4],56:[7,4],59:[10,7],61:[10,9],62:[7,7],68:[3,1],71:[15,9],
@@ -129,30 +129,17 @@ function numberFrom(value = "") {
 }
 
 function institutesFromCsv(text: string): Institute[] {
-  return parseCsv(text).slice(1).filter(row => row[0]?.trim() && (row[1]?.trim() || row[2]?.trim())).map((row, index) => ({
+  return parseCsv(text).slice(1).filter(row => row[0]?.trim() && (row[2]?.trim() || row[3]?.trim())).map((row, index) => ({
     id: numberFrom(row[0]) || index + 1,
-    nameKz: row[1]?.trim() || row[2]?.trim() || "",
-    nameRu: row[2]?.trim() || row[1]?.trim() || "",
-    region: row[3]?.trim() || "—",
-    district: row[4]?.trim() || "—",
-    licenses: numberFrom(row[5]),
-    signed: /^(да|иә|yes)$/i.test(row[6]?.trim() || ""),
-    started: numberFrom(row[7]),
-    activated: numberFrom(row[8]),
+    nameKz: row[2]?.trim() || row[3]?.trim() || "",
+    nameRu: row[3]?.trim() || row[2]?.trim() || "",
+    region: row[4]?.trim() || "—",
+    district: row[5]?.trim() || "—",
+    licenses: numberFrom(row[6]),
+    signed: /^(да|иә|yes)$/i.test(row[9]?.trim() || ""),
+    started: numberFrom(row[10]),
+    activated: numberFrom(row[11]),
   }));
-}
-
-function withPowerBiRows(rows: Institute[], snapshot: PowerBiSnapshot) {
-  const signedIds = new Set(snapshot.signedIds);
-  return rows.map(row => {
-    const current = snapshot.rows[String(row.id)];
-    return {
-      ...row,
-      signed: signedIds.has(row.id),
-      started: current?.[0] ?? 0,
-      activated: current?.[1] ?? 0,
-    };
-  });
 }
 
 function BarRow({ row, lang, tone }: { row: Institute; lang: Lang; tone: "good" | "bad" }) {
@@ -172,7 +159,7 @@ export default function Home() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "rate", dir: -1 });
   const [selectedId, setSelectedId] = useState(8);
   const [powerBi, setPowerBi] = useState<PowerBiSnapshot>(POWER_BI_FALLBACK);
-  const [rows, setRows] = useState<Institute[]>(() => withPowerBiRows(institutes, POWER_BI_FALLBACK));
+  const [rows, setRows] = useState<Institute[]>(institutes);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshState, setRefreshState] = useState<"idle" | "ok" | "error">("idle");
   const t = copy[lang];
@@ -191,7 +178,7 @@ export default function Home() {
       if (!next.length) throw new Error("Google Sheets returned no rows");
       const nextPowerBi = await powerBiResponse.json() as PowerBiSnapshot;
       setPowerBi(nextPowerBi);
-      setRows(withPowerBiRows(next, nextPowerBi));
+      setRows(next);
       setRefreshState("ok");
     } catch (error) {
       console.error(error);
@@ -210,7 +197,8 @@ export default function Home() {
   const signed = rows.filter(i => i.signed);
   const unsigned = rows.filter(i => !i.signed).sort((a, b) => b.licenses - a.licenses);
   const totalLicenses = rows.reduce((sum, i) => sum + i.licenses, 0);
-  const nationalRate = totalLicenses > 0 ? powerBi.activated / totalLicenses : 0;
+  const totalActivated = rows.reduce((sum, i) => sum + i.activated, 0);
+  const nationalRate = totalLicenses > 0 ? totalActivated / totalLicenses : 0;
   const regions = [...new Set(rows.map(i => i.region))].sort((a, b) => a.localeCompare(b));
   const selected = rows.find(i => i.id === selectedId) ?? rows[0];
   const nameOf = (row: Institute) => cleanName(lang === "ru" ? row.nameRu : row.nameKz);
@@ -268,11 +256,11 @@ export default function Home() {
 
       <section className="summary-grid" aria-label="Key metrics">
         <article className="summary-card contract-summary">
-          <div><span className="dot good" /><span>{t.signed}</span><strong>{powerBi.signed}</strong></div>
-          <div><span className="dot bad" /><span>{t.unsigned}</span><strong>{powerBi.unsigned}</strong></div>
+          <div><span className="dot good" /><span>{t.signed}</span><strong>{signed.length}</strong></div>
+          <div><span className="dot bad" /><span>{t.unsigned}</span><strong>{unsigned.length}</strong></div>
         </article>
         <article className="summary-card"><span>{t.licenses}</span><strong>{formatNumber(totalLicenses, lang)}</strong></article>
-        <article className="summary-card"><span>{t.activated}</span><strong className="green-value">{formatNumber(powerBi.activated, lang)}</strong></article>
+        <article className="summary-card"><span>{t.activated}</span><strong className="green-value">{formatNumber(totalActivated, lang)}</strong></article>
         <article className="summary-card"><span>{t.rate}</span><strong className="amber-value">{Math.round(nationalRate * 100)}%</strong></article>
       </section>
 

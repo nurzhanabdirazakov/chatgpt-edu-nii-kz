@@ -129,16 +129,16 @@ function numberFrom(value = "") {
 }
 
 function institutesFromCsv(text: string): Institute[] {
-  return parseCsv(text).slice(1).filter(row => row[0]?.trim() && (row[2]?.trim() || row[3]?.trim())).map((row, index) => ({
+  return parseCsv(text).slice(1).filter(row => row[0]?.trim() && (row[1]?.trim() || row[2]?.trim())).map((row, index) => ({
     id: numberFrom(row[0]) || index + 1,
-    nameKz: row[2]?.trim() || row[3]?.trim() || "",
-    nameRu: row[3]?.trim() || row[2]?.trim() || "",
-    region: row[4]?.trim() || "—",
-    district: row[5]?.trim() || "—",
-    licenses: numberFrom(row[6]),
-    signed: /^(да|иә|yes)$/i.test(row[9]?.trim() || ""),
-    started: numberFrom(row[10]),
-    activated: numberFrom(row[11]),
+    nameKz: row[1]?.trim() || row[2]?.trim() || "",
+    nameRu: row[2]?.trim() || row[1]?.trim() || "",
+    region: row[3]?.trim() || "—",
+    district: row[4]?.trim() || "—",
+    licenses: numberFrom(row[5]),
+    signed: /^(да|иә|yes)$/i.test(row[6]?.trim() || ""),
+    started: numberFrom(row[7]),
+    activated: numberFrom(row[8]),
   }));
 }
 

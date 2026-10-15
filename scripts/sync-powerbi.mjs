@@ -1,214 +1,101 @@
-import { chromium } from "playwright";
-import { readFile, writeFile } from "node:fs/promises";
-
-const REPORT_URL = "https://app.powerbi.com/view?r=eyJrIjoiMmI5ZGE3NjctYmVkYi00MmUyLTk5YmEtMzQyOTJmZThhNTE0IiwidCI6IjQ0YWY2MTM1LTFmMTYtNGU3ZS04MzViLTAwYWY1MTdkZTNmNyIsImMiOjl9";
-const OUTPUT = new URL("../public/data/power-bi.json", import.meta.url);
-
-function loadInstitutes(source) {
-  const marker = "export const institutes: Institute[] = ";
-  const markerIndex = source.indexOf(marker);
-  const start = source.indexOf("[", markerIndex + marker.length);
-  const end = source.lastIndexOf("];");
-  if (markerIndex < 0 || start < 0 || end < 0) throw new Error("Could not read institute catalogue");
-  return JSON.parse(source.slice(start, end + 1));
+// Read the PUBLIC, RENDERED report only. No Power BI API or credentials.
+import { chromium } from 'playwright';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+const REPORT_URL = 'https://app.powerbi.com/view?r=eyJrIjoiMmI5ZGE3NjctYmVkYi00MmUyLTk5YmEtMzQyOTJmZThhNTE0IiwidCI6IjQ0YWY2MTM1LTFmMTYtNGU3ZS04MzViLTAwYWY1MTdkZTNmNyIsImMiOjl9';
+const OUTPUT = new URL('../public/data/power-bi.json', import.meta.url);
+const source = await readFile(new URL('../app/data.ts', import.meta.url), 'utf8');
+const marker = 'export const institutes: Institute[] = ';
+if (!source.includes(marker)) throw new Error('Catalogue format changed');
+const catalogue = JSON.parse(source.slice(source.indexOf('[', source.indexOf(marker) + marker.length), source.lastIndexOf('];') + 1));
+function normalize(s) {
+  return s.toLowerCase().replace(/ё/g, 'е')
+    .replace(/республиканское\s+государственное\s+предприятие\s+на\s+праве\s+хозяйственного\s+ведения/gu, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
-
-function normalize(value) {
-  return value
-    .toLocaleLowerCase("ru")
-    .replace(/республиканск(?:ое|ий|ая)\s+государственн(?:ое|ый|ая)\s+предприяти(?:е|я)\s+на\s+праве\s+хозяйственного\s+ведения/giu, " ")
-    .replace(/шаруашылық\s+жүргізу\s+құқығындағы\s+республикалық\s+мемлекеттік\s+кәсіпорны/giu, " ")
-    .replace(/\b(ргп|рмм|рму|ргу|тоо|ао|нао|кнао|кн|мнво|мз|рк|шжқ|рмк|жшс|ақ|кеақ|ғжбм|ғк)\b/giu, " ")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function match(name) {
+  const a = normalize(name);
+  const scores = catalogue.map(item => {
+    const scores = [item.nameRu, item.nameKz].map(n => {
+      const b = normalize(n);
+      if (a === b) return 1;
+      if (a.includes(b) || b.includes(a)) return Math.min(a.length,b.length)/Math.max(a.length,b.length);
+      const aa = new Set(a.split(' ').filter(w=>w.length>2));
+      const bb = new Set(b.split(' ').filter(w=>w.length>2));
+      return [...aa].filter(w=>bb.has(w)).length / Math.max(aa.size,bb.size,1);
+    });
+    return {id:item.id,score:Math.max(...scores)};
+  }).sort((a,b)=>b.score-a.score);
+  if (scores[0].score < .78 || scores[0].score-scores[1].score < .12)
+    throw new Error(`Ambiguous institute: ${name}; candidates ${JSON.stringify(scores.slice(0,2))}`);
+  return scores[0].id;
 }
-
-function scoreName(left, right) {
-  const a = normalize(left);
-  const b = normalize(right);
-  if (!a || !b) return 0;
-  if (a === b) return 1;
-  if (a.includes(b) || b.includes(a)) return Math.min(a.length, b.length) / Math.max(a.length, b.length) + 0.25;
-  const aa = new Set(a.split(" ").filter(word => word.length > 2));
-  const bb = new Set(b.split(" ").filter(word => word.length > 2));
-  const common = [...aa].filter(word => bb.has(word)).length;
-  return common / Math.max(aa.size, bb.size, 1);
-}
-
-function matchInstitute(name, institutes, used = new Set()) {
-  const ranked = institutes
-    .filter(item => !used.has(item.id))
-    .map(item => ({ item, score: Math.max(scoreName(name, item.nameRu), scoreName(name, item.nameKz)) }))
-    .sort((a, b) => b.score - a.score);
-  if (!ranked[0] || ranked[0].score < 0.42) throw new Error(`No institute match for: ${name}`);
-  return ranked[0].item;
-}
-
-async function rowLabels(grid) {
-  return grid.locator('[role="row"]').evaluateAll(rows => rows.map(row => {
-    const toggle = row.querySelector('[aria-expanded]');
-    const state = toggle ? (toggle.getAttribute("aria-expanded") === "true" ? "Expanded" : "Collapsed") : "Leaf";
-    const cells = [...row.querySelectorAll('[role="rowheader"], [role="columnheader"], [role="gridcell"]')]
-      .map(cell => (cell.textContent || "").replace(/\s+/g, " ").trim())
-      .filter(Boolean);
-    return [state, ...cells].filter(Boolean).join(" ");
-  }));
-}
-
-async function reportGrids(page) {
-  await page.getByRole("grid").first().waitFor({ state: "visible", timeout: 90_000 });
-  await page.getByText("Итого", { exact: true }).first().waitFor({ state: "visible", timeout: 90_000 });
-  await page.waitForTimeout(1_500);
-  return page.getByRole("grid").all();
-}
-
-async function expandToInstitutes(page, grid) {
-  await grid.hover();
-  await page.waitForTimeout(250);
-  for (let level = 0; level < 2; level += 1) {
-    const expand = page.getByRole("button", { name: "Развернуть все на один уровень вниз в иерархии" }).filter({ visible: true }).first();
-    await expand.click({ timeout: 10_000 });
-    await page.waitForTimeout(900);
-    await grid.hover();
-  }
-}
-
-async function scrapeFocusedRows(page, grid) {
-  await grid.hover();
-  const focus = page.getByRole("button", { name: "Режим фокусировки" }).filter({ visible: true }).first();
-  await focus.click({ timeout: 10_000 });
-  await page.waitForTimeout(800);
-
-  const grids = await reportGrids(page);
-  let target = grids[0];
-  for (const candidate of grids) {
-    const labels = await rowLabels(candidate);
-    if (labels.some(label => label.includes("Начали вводный модуль")) || labels.some(label => label.includes("НИИ"))) {
-      target = candidate;
-      break;
-    }
-  }
-
-  const labels = new Set();
-  const scrollInfo = await target.evaluate(element => {
-    let current = element;
-    while (current && current.scrollHeight <= current.clientHeight) current = current.parentElement;
-    return current ? { height: current.clientHeight, total: current.scrollHeight } : { height: 700, total: 700 };
-  });
-  const steps = Math.max(1, Math.ceil(scrollInfo.total / Math.max(200, scrollInfo.height / 2)));
-  for (let step = 0; step <= steps; step += 1) {
-    for (const label of await rowLabels(target)) labels.add(label.trim());
-    await target.evaluate((element, nextTop) => {
-      let current = element;
-      while (current && current.scrollHeight <= current.clientHeight) current = current.parentElement;
-      if (current) current.scrollTop = nextTop;
-    }, Math.round(step * Math.max(200, scrollInfo.height / 2)));
-    await page.waitForTimeout(180);
-  }
-  for (const label of await rowLabels(target)) labels.add(label.trim());
-  await page.getByRole("button", { name: "Назад к отчету" }).click();
-  await page.waitForTimeout(500);
-  return [...labels];
-}
-
-function totalFrom(labels, width) {
-  const totals = labels
-    .filter(label => /^(?:(?:Leaf|Expanded|Collapsed)\s+)?Итого\s/.test(label))
-    .map(label => [...label.matchAll(/\d+/g)].map(match => Number(match[0])))
-    .filter(values => values.length >= width);
-  return totals[0]?.slice(-width) ?? null;
-}
-
-const catalogue = loadInstitutes(await readFile(new URL("../app/data.ts", import.meta.url), "utf8"));
-const browser = await chromium.launch({ headless: true });
-const context = await browser.newContext({ locale: "ru-RU", viewport: { width: 2174, height: 1191 } });
+const browser = await chromium.launch({headless:true});
+const context = await browser.newContext({locale:'ru-RU',viewport:{width:2200,height:10000}});
 const page = await context.newPage();
-
-try {
-  await page.goto(REPORT_URL, { waitUntil: "domcontentloaded", timeout: 120_000 });
-  let grids = await reportGrids(page);
-  const countGrids = [];
-  for (const grid of grids) {
-    const labels = await rowLabels(grid);
-    const total = totalFrom(labels, 2);
-    if (total) countGrids.push({ grid, labels, total: total[0] });
+page.setDefaultTimeout(45000);
+await mkdir('sync-evidence',{recursive:true});
+async function readTable(index,label) {
+  const grids = page.getByRole('grid').filter({has:page.getByRole('columnheader',{name:'Область',exact:true})});
+  if (await grids.count() !== 2) throw new Error('Expected two access tables');
+  const grid = grids.nth(index);
+  await grid.hover();
+  await page.getByRole('button',{name:'Режим фокусировки',exact:true}).filter({visible:true}).click();
+  const focused = page.getByRole('grid').filter({visible:true});
+  await focused.waitFor({state:'visible'});
+  for(let i=0;i<150;i++) {
+    const collapsed = focused.getByRole('button',{name:'Collapsed',exact:true});
+    if (!await collapsed.count()) break;
+    await collapsed.first().click();
+    await page.waitForTimeout(350);
   }
-  countGrids.sort((a, b) => b.total - a.total);
-  if (countGrids.length < 2) throw new Error("Could not locate contract tables");
-  const signed = countGrids[0].total;
-  const unsigned = countGrids[1].total;
-
-  await expandToInstitutes(page, countGrids[0].grid);
-  const signedLabels = await scrapeFocusedRows(page, countGrids[0].grid);
-  const signedNames = signedLabels
-    .filter(label => /^Leaf\s/.test(label) && !/^Leaf\s+Итого\s/.test(label) && /\s+\d+\s+\d+$/.test(label))
-    .map(label => label.replace(/^Leaf\s+/, "").replace(/\s+\d+\s+\d+$/, ""));
-  const signedIds = [];
-  const usedSigned = new Set();
-  for (const name of signedNames) {
-    let institute;
-    try {
-      institute = matchInstitute(name, catalogue, usedSigned);
-    } catch {
-      continue;
-    }
-    usedSigned.add(institute.id);
-    signedIds.push(institute.id);
+  await page.waitForTimeout(1000);
+  if (await focused.getByRole('button',{name:'Collapsed',exact:true}).count()) throw new Error('Unexpanded hierarchy');
+  const table = await focused.evaluate(g => ({
+    expected:Number(g.getAttribute('aria-rowcount')),
+    rows:[...g.querySelectorAll('[role=row]')].map(r=>({
+      name:r.querySelector('[role=rowheader]')?.textContent?.trim(),
+      parent:!!r.querySelector('[role=rowheader] [role=button]'),
+      values:[...r.querySelectorAll('[role=gridcell]')].map(c=>c.textContent.trim())
+    }))
+  }));
+  await writeFile(`sync-evidence/${label}.json`,JSON.stringify(table,null,2));
+  if (!table.expected || table.rows.length < table.expected) throw new Error(`Incomplete ${label}: ${table.rows.length}/${table.expected}`);
+  const result = {};
+  let total;
+  for (const row of table.rows) {
+    if (!row.name || row.parent) continue;
+    const value=Number(row.values[0]?.replace(/[\s\u00a0]/g,''));
+    if (!Number.isSafeInteger(value)||value<0) throw new Error(`Invalid value: ${row.name}`);
+    if(row.name==='Итого') {total=value;continue;}
+    const id=match(row.name);
+    if(id in result) throw new Error(`Duplicate institute ${id}`);
+    result[id]=value;
   }
-  if (signedIds.length !== signed) throw new Error(`Expected ${signed} signed institutes, matched ${signedIds.length}`);
-
-  await page.getByRole("button", { name: "Следующая страница" }).click();
+  if(Object.keys(result).length<30 || !total) throw new Error(`Incomplete ${label}`);
+  await page.getByRole('button',{name:'Назад к отчету',exact:true}).click();
   await page.waitForTimeout(700);
-  await page.getByRole("button", { name: "Следующая страница" }).click();
-  await page.waitForTimeout(1_000);
-  grids = await reportGrids(page);
-  let activationGrid;
-  let activationTotal;
-  for (const grid of grids) {
-    const labels = await rowLabels(grid);
-    if (labels.some(label => label.includes("Начали вводный модуль"))) {
-      activationGrid = grid;
-      activationTotal = totalFrom(labels, 3);
-      break;
-    }
-  }
-  if (!activationGrid || !activationTotal) throw new Error("Could not locate activation table");
-  await expandToInstitutes(page, activationGrid);
-  const activationLabels = await scrapeFocusedRows(page, activationGrid);
-  const rows = {};
-  const usedRows = new Set();
-  for (const label of activationLabels.filter(value => /^Leaf\s/.test(value) && !/^Leaf\s+Итого\s/.test(value))) {
-    const clean = label.replace(/^Leaf\s+/, "");
-    const match = clean.match(/^(.*?)(?:\s+(\d+))(?:\s+(\d+))?(?:\s+(\d+))?$/);
-    if (!match) continue;
-    let institute;
-    try {
-      institute = matchInstitute(match[1], catalogue, usedRows);
-    } catch {
-      continue;
-    }
-    usedRows.add(institute.id);
-    rows[String(institute.id)] = [Number(match[3] ?? 0), Number(match[4] ?? 0)];
-  }
-  if (Object.keys(rows).length < 20) throw new Error(`Only ${Object.keys(rows).length} activation rows were matched`);
-
-  const bodyText = await page.locator("body").innerText();
-  const timestamp = bodyText.match(/\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}:\d{2}/)?.[0];
-  if (!timestamp) throw new Error("Could not read Power BI update timestamp");
-  const [moduleStarted, moduleCompleted, activated] = activationTotal;
-  const snapshot = {
-    signed,
-    unsigned,
-    moduleStarted,
-    moduleCompleted,
-    activated,
-    updated: timestamp.replace(" ", ", "),
-    signedIds: signedIds.sort((a, b) => a - b),
-    rows,
-  };
-  await writeFile(OUTPUT, `${JSON.stringify(snapshot, null, 2)}\n`, "utf8");
-  console.log(`Power BI synced: ${signed} signed, ${activated} activated, ${Object.keys(rows).length} institute rows.`);
-} finally {
-  await browser.close();
+  return {result,total};
 }
+try {
+  await page.goto(REPORT_URL,{waitUntil:'domcontentloaded',timeout:120000});
+  await page.getByRole('grid').first().waitFor({state:'visible',timeout:120000});
+  await page.getByRole('button',{name:'Следующая страница',exact:true}).click();
+  await page.getByText('Педагоги, которые получили логин и пароль',{exact:true}).waitFor({state:'visible',timeout:120000});
+  await page.waitForTimeout(3000);
+  const timestamp=(await page.locator('body').innerText()).match(/\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}:\d{2}/)?.[0];
+  if(!timestamp) throw new Error('Missing source timestamp');
+  const received=await readTable(0,'received');
+  const activated=await readTable(1,'activated');
+  const sum=Object.values(activated.result).reduce((a,b)=>a+b,0);
+  if(sum!==activated.total) throw new Error(`Activated total mismatch: ${sum}/${activated.total}`);
+  const rows=Object.fromEntries(catalogue.map(i=>[i.id,[received.result[i.id]??0,activated.result[i.id]??0]]));
+  for(const [id,[r,a]] of Object.entries(rows)) if(a>r) throw new Error(`Activated exceeds received: ${id}`);
+  const snapshot={schemaVersion:2,metrics:['received','activated'],activated:sum,receivedTotal:received.total,
+    receivedRowSum:Object.values(received.result).reduce((a,b)=>a+b,0),
+    updated:timestamp.replace(' ', ', '),checkedAt:new Date().toISOString(),rows};
+  await writeFile(OUTPUT,JSON.stringify(snapshot,null,2)+'\n');
+  console.log(`Validated ${Object.keys(rows).length} institutes, ${sum} activated. Source: ${timestamp}`);
+} catch(error) {
+  await page.screenshot({path:'sync-evidence/error.png'}).catch(()=>{});
+  throw error;
+} finally {await browser.close();}
